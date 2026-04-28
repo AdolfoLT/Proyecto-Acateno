@@ -22,31 +22,31 @@ const IcoBomb      = () => <svg width="16" height="16" viewBox="0 0 24 24" fill=
 
 export default function AdminPanel() {
   const { usuario } = useAuth()
-  const esAdmin = usuario?.rol === 'admin'
-  const esContador = usuario?.rol === 'contador'
+  const esAdmin      = usuario?.rol === 'admin'
+  const esContador   = usuario?.rol === 'contador'
   const esPrivilegiado = esAdmin || esContador
 
-  const [tab, setTab]           = useState('ocultas')
-  const [ocultas, setOcultas]   = useState([])
-  const [usuarios, setUsuarios] = useState([])
+  const [tab, setTab]             = useState('ocultas')
+  const [ocultas, setOcultas]     = useState([])
+  const [usuarios, setUsuarios]   = useState([])
   const [auditoria, setAuditoria] = useState([])
-  const [loading, setLoading]   = useState(false)
-  const [newUser, setNewUser]   = useState({ nombre: '', username: '', password: '', rol: 'usuario' })
-  const [showForm, setShowForm] = useState(false)
-  const [purgando, setPurgando] = useState(false)
+  const [loading, setLoading]     = useState(false)
+  const [newUser, setNewUser]     = useState({ nombre: '', username: '', password: '', rol: 'usuario' })
+  const [showForm, setShowForm]   = useState(false)
+  const [purgando, setPurgando]   = useState(false)
   const [anioFiltro, setAnioFiltro] = useState('')
+  const [eliminando, setEliminando] = useState(null) // id de la req que se está eliminando
 
-  // Tabs disponibles según rol
+  // Tabs según rol
   const TABS_BASE = [
-    { id: 'ocultas',   label: 'Req. Ocultadas', icon: <IcoFolder />,    visible: esPrivilegiado },
-    { id: 'usuarios',  label: 'Usuarios',        icon: <IcoUsers />,    visible: esAdmin },
+    { id: 'ocultas',   label: 'Req. Ocultadas', icon: <IcoFolder />,     visible: esPrivilegiado },
+    { id: 'usuarios',  label: 'Usuarios',        icon: <IcoUsers />,     visible: esAdmin },
     { id: 'auditoria', label: 'Auditoría',       icon: <IcoClipboard />, visible: esAdmin },
-    { id: 'purgar',    label: 'Purga de Datos',  icon: <IcoBomb />,     visible: esAdmin },
+    { id: 'purgar',    label: 'Purga de Datos',  icon: <IcoBomb />,      visible: esAdmin },
   ]
   const TABS = TABS_BASE.filter(t => t.visible)
 
   useEffect(() => {
-    // Si el tab activo no está disponible para este rol, ir al primero disponible
     if (!TABS.find(t => t.id === tab)) setTab(TABS[0]?.id || 'ocultas')
   }, [])
 
@@ -75,16 +75,76 @@ export default function AdminPanel() {
     finally { setLoading(false) }
   }
 
-  async function restaurar(id) {
+  // ── RESTAURAR ────────────────────────────────────────────────
+  async function restaurar(r) {
+    const conf = await Swal.fire({
+      title: '¿Restaurar requisición?',
+      html: `El folio <b>${r.folio}</b> volverá a estar activo y visible para todos.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, restaurar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#1a3a2a',
+    })
+    if (!conf.isConfirmed) return
     try {
-      await api.patch(`/requisiciones/${id}/restaurar`)
-      Swal.fire({ title: 'Restaurada', icon: 'success', confirmButtonColor: '#1a3a2a', timer: 1800, showConfirmButton: false })
+      await api.patch(`/requisiciones/${r.id}/restaurar`)
+      await Swal.fire({ title: 'Restaurada', icon: 'success', confirmButtonColor: '#1a3a2a', timer: 1800, showConfirmButton: false })
       cargarOcultas()
     } catch {
       Swal.fire({ title: 'Error', icon: 'error', confirmButtonColor: '#1a3a2a' })
     }
   }
 
+  // ── ELIMINAR DEFINITIVAMENTE (individual, solo admin) ─────────
+  async function eliminarDefinitivamente(r) {
+    const conf = await Swal.fire({
+      title: 'Eliminar definitivamente',
+      html: `
+        <p>La requisición <b>${r.folio}</b> será eliminada de forma <b>permanente</b>.</p>
+        <p style="margin-top:10px;color:#b91c1c;font-size:.85rem">
+          Esta acción <b>NO SE PUEDE DESHACER</b>.
+        </p>
+        <p style="margin-top:8px;font-size:.8rem;color:#666">
+          Para confirmar, escribe el folio: <b>${r.folio}</b>
+        </p>`,
+      input: 'text',
+      inputPlaceholder: `Escribe ${r.folio} para confirmar`,
+      showCancelButton: true,
+      confirmButtonText: 'Eliminar definitivamente',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#b91c1c',
+      inputValidator: (val) => {
+        if (val !== r.folio) return `Debes escribir exactamente "${r.folio}" para confirmar.`
+      },
+    })
+    if (!conf.isConfirmed) return
+
+    setEliminando(r.id)
+    try {
+      await api.delete(`/admin/requisiciones/${r.id}`)
+      await Swal.fire({
+        title: 'Eliminada',
+        html: `La requisición <b>${r.folio}</b> fue eliminada definitivamente.`,
+        icon: 'success',
+        confirmButtonColor: '#1a3a2a',
+        timer: 2200,
+        showConfirmButton: false,
+      })
+      cargarOcultas()
+    } catch (err) {
+      Swal.fire({
+        title: 'Error',
+        text: err.response?.data?.mensaje || 'No se pudo eliminar.',
+        icon: 'error',
+        confirmButtonColor: '#1a3a2a',
+      })
+    } finally {
+      setEliminando(null)
+    }
+  }
+
+  // ── GESTIÓN DE USUARIOS ───────────────────────────────────────
   async function toggleUsuario(u) {
     try { await api.patch(`/admin/usuarios/${u.id}/toggle`); cargarUsuarios() } catch {}
   }
@@ -119,6 +179,7 @@ export default function AdminPanel() {
     }
   }
 
+  // ── PURGA MASIVA ──────────────────────────────────────────────
   async function handlePurgar() {
     const anioTexto = anioFiltro ? `del año ${anioFiltro}` : 'de TODOS LOS AÑOS'
     const conf = await Swal.fire({
@@ -126,7 +187,7 @@ export default function AdminPanel() {
       html: `
         <p>Estás a punto de <b>eliminar definitivamente</b> todas las requisiciones ${anioTexto}.</p>
         <p style="margin-top:10px;color:#b91c1c;font-size:.85rem">
-          Esta acción <b>NO SE PUEDE DESHACER</b>. Las requisiciones no podrán recuperarse.
+          Esta acción <b>NO SE PUEDE DESHACER</b>.
         </p>
         <p style="margin-top:8px;font-size:.8rem;color:#666">
           Para confirmar, escribe: <b>PURGAR</b>
@@ -166,19 +227,20 @@ export default function AdminPanel() {
   const accionColor = a =>
     a === 'ocultar'   ? 'var(--rojo)'       :
     a === 'restaurar' ? 'var(--verde-claro)' :
+    a === 'eliminar'  ? '#b91c1c'            :
     a === 'purgar'    ? '#7c3aed'            :
     a === 'crear'     ? '#1d4ed8'            : 'var(--texto-medio)'
 
   const rolBadgeStyle = (rol) => ({
     display: 'inline-flex', alignItems: 'center', gap: 4,
     padding: '2px 8px', borderRadius: 20, fontSize: '.72rem', fontWeight: 600,
-    background: rol === 'admin' ? 'rgba(26,58,42,.12)' :
-                rol === 'contador' ? 'rgba(29,78,216,.1)' : 'var(--gris-20)',
-    color: rol === 'admin' ? 'var(--verde-oscuro)' :
-           rol === 'contador' ? '#1d4ed8' : 'var(--texto-medio)',
+    background: rol === 'admin'    ? 'rgba(26,58,42,.12)' :
+                rol === 'contador' ? 'rgba(29,78,216,.1)'  : 'var(--gris-20)',
+    color: rol === 'admin'    ? 'var(--verde-oscuro)' :
+           rol === 'contador' ? '#1d4ed8'              : 'var(--texto-medio)',
   })
 
-  const anioActual = new Date().getFullYear()
+  const anioActual      = new Date().getFullYear()
   const aniosDisponibles = Array.from({ length: 5 }, (_, i) => anioActual - i)
 
   return (
@@ -217,7 +279,35 @@ export default function AdminPanel() {
           <div className="card">
             <div className="card-header">
               <div className="card-title">Requisiciones Ocultadas</div>
+              <span style={{ fontSize: '.78rem', color: 'var(--texto-claro)' }}>
+                {esAdmin
+                  ? 'Puedes restaurar o eliminar definitivamente cada requisición.'
+                  : 'Puedes restaurar las requisiciones ocultadas.'}
+              </span>
             </div>
+
+            {/* Leyenda de acciones disponibles (solo admin) */}
+            {esAdmin && ocultas.length > 0 && (
+              <div style={{
+                margin: '0 24px 4px',
+                padding: '10px 14px',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: 8,
+                fontSize: '.78rem',
+                color: '#991b1b',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+                <IcoAlertTri />
+                <span>
+                  <b>Eliminar definitivamente</b> borra el registro de forma permanente e irreversible.
+                  Usa <b>Restaurar</b> si solo quieres que vuelva a ser visible.
+                </span>
+              </div>
+            )}
+
             {loading ? (
               <div className="loading-center"><div className="spinner" /></div>
             ) : ocultas.length === 0 ? (
@@ -237,7 +327,7 @@ export default function AdminPanel() {
                       <th>Ocultada por</th>
                       <th>Motivo</th>
                       <th>Fecha</th>
-                      <th style={{ textAlign: 'center' }}>Acción</th>
+                      <th style={{ textAlign: 'center' }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -251,13 +341,47 @@ export default function AdminPanel() {
                           {r.oculta_motivo || '—'}
                         </td>
                         <td style={{ fontSize: '.78rem' }}>{r.oculta_en?.slice(0, 10)}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button className="btn btn-primary" style={{ fontSize: '.75rem', padding: '5px 12px' }}
-                            onClick={() => restaurar(r.id)}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <IcoRotateCcw />Restaurar
-                            </span>
-                          </button>
+                        <td>
+                          <div className="acciones-cell" style={{ justifyContent: 'center', gap: 8 }}>
+                            {/* Restaurar — admin y contador */}
+                            <button
+                              className="btn btn-primary"
+                              style={{ fontSize: '.73rem', padding: '5px 11px' }}
+                              onClick={() => restaurar(r)}
+                              disabled={eliminando === r.id}
+                            >
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <IcoRotateCcw /> Restaurar
+                              </span>
+                            </button>
+
+                            {/* Eliminar definitivamente — solo admin */}
+                            {esAdmin && (
+                              <button
+                                className="btn"
+                                style={{
+                                  fontSize: '.73rem', padding: '5px 11px',
+                                  background: eliminando === r.id ? '#e5e7eb' : '#b91c1c',
+                                  color: eliminando === r.id ? '#6b7280' : '#fff',
+                                  border: 'none', borderRadius: 7,
+                                  cursor: eliminando === r.id ? 'not-allowed' : 'pointer',
+                                  transition: 'opacity .2s',
+                                  opacity: eliminando === r.id ? 0.6 : 1,
+                                }}
+                                onClick={() => eliminarDefinitivamente(r)}
+                                disabled={eliminando === r.id}
+                                title="Eliminar de forma permanente e irreversible"
+                              >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  {eliminando === r.id
+                                    ? <span style={{ display:'inline-block', width:11, height:11, border:'2px solid #9ca3af', borderTopColor:'#6b7280', borderRadius:'50%', animation:'spin .6s linear infinite' }} />
+                                    : <IcoTrash2 />
+                                  }
+                                  Eliminar
+                                </span>
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -341,7 +465,7 @@ export default function AdminPanel() {
                         </td>
                         <td>
                           <span style={rolBadgeStyle(u.rol)}>
-                            {u.rol === 'admin'    ? <><IcoShield /> Admin</>    :
+                            {u.rol === 'admin'    ? <><IcoShield /> Admin</>        :
                              u.rol === 'contador' ? <><IcoCalculator /> Contador</> :
                                                    <><IcoUser /> Usuario</>}
                           </span>
@@ -447,8 +571,6 @@ export default function AdminPanel() {
               </div>
             </div>
             <div className="card-body">
-
-              {/* Advertencia */}
               <div style={{
                 background: '#fef2f2', border: '1px solid #fecaca',
                 borderRadius: 12, padding: '16px 20px', marginBottom: 24,
@@ -469,7 +591,6 @@ export default function AdminPanel() {
                 </div>
               </div>
 
-              {/* Opciones de purga */}
               <div style={{ maxWidth: 480 }}>
                 <div className="form-group" style={{ marginBottom: 20 }}>
                   <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>

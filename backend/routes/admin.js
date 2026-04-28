@@ -19,6 +19,53 @@ router.get('/requisiciones-ocultas', adminOContador, async (_req, res) => {
   res.json(rows);
 });
 
+// ── DELETE /api/admin/requisiciones/:id ──────────────────────
+// SOLO ADMIN — elimina definitivamente UNA requisición por ID
+// La requisición puede estar en cualquier estado (activa u oculta)
+router.delete('/requisiciones/:id', soloAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ mensaje: 'ID inválido.' });
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, folio, estado FROM requisiciones WHERE id = ? AND estado != 'eliminada'`,
+      [id]
+    );
+    if (!rows[0]) {
+      return res.status(404).json({ mensaje: 'Requisición no encontrada o ya eliminada.' });
+    }
+
+    await pool.query(
+      `UPDATE requisiciones SET estado = 'eliminada' WHERE id = ?`,
+      [id]
+    );
+
+    // Auditoría
+    await pool.query(
+      `INSERT INTO auditoria (usuario_id, username, accion, tabla, registro_id, detalle, ip)
+       VALUES (?,?,?,?,?,?,?)`,
+      [
+        req.user.id,
+        req.user.username,
+        'eliminar',
+        'requisiciones',
+        id,
+        JSON.stringify({ folio: rows[0].folio, estado_previo: rows[0].estado }),
+        req.ip,
+      ]
+    );
+
+    res.json({
+      mensaje: `Requisición ${rows[0].folio} eliminada definitivamente.`,
+      id,
+      folio: rows[0].folio,
+    });
+  } catch (err) {
+    console.error('[ADMIN] Error al eliminar requisición:', err);
+    res.status(500).json({ mensaje: 'Error al eliminar la requisición.' });
+  }
+});
+
 // ── GET /api/admin/auditoria ─────────────────────────────────
 // Solo admin
 router.get('/auditoria', soloAdmin, async (req, res) => {
@@ -88,10 +135,9 @@ router.patch('/usuarios/:id/password', soloAdmin, async (req, res) => {
 });
 
 // ── DELETE /api/admin/purgar ──────────────────────────────────
-// SOLO ADMIN — elimina definitivamente TODAS las requisiciones (estado = 'eliminada')
-// También puede purgar por rango de año
+// SOLO ADMIN — elimina definitivamente TODAS las requisiciones (o por año)
 router.delete('/purgar', soloAdmin, async (req, res) => {
-  const { anio } = req.query; // opcional: solo purgar un año específico
+  const { anio } = req.query;
   try {
     let query = `UPDATE requisiciones SET estado='eliminada' WHERE estado != 'eliminada'`;
     const params = [];
@@ -101,7 +147,6 @@ router.delete('/purgar', soloAdmin, async (req, res) => {
     }
     const [result] = await pool.query(query, params);
 
-    // Auditoría de la purga
     await pool.query(
       `INSERT INTO auditoria (usuario_id, username, accion, tabla, detalle, ip)
        VALUES (?,?,?,?,?,?)`,
