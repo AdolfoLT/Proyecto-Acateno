@@ -24,8 +24,6 @@ app.use(cors({
       process.env.FRONTEND_URL,
       'http://localhost:5173',
     ].filter(Boolean)
-    
-    // Permitir también cualquier subdominio de vercel.app
     if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true)
     } else {
@@ -34,7 +32,8 @@ app.use(cors({
   },
   credentials: true,
 }));
-
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true }));
 // ── Rutas ────────────────────────────────────────────────────
 app.use('/api/auth',          authRoutes);
 app.use('/api/requisiciones', requisicionesRoutes);
