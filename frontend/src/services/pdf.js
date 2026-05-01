@@ -34,10 +34,21 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-// ── Imports ───────────────────────────────────────────────────────────────────
-import pdfMake from 'pdfmake/build/pdfmake'
-import pdfFonts from 'pdfmake/build/vfs_fonts'
-pdfMake.vfs = pdfFonts.pdfMake.vfs
+// ── pdfmake — carga LAZY (solo al generar el primer PDF) ─────────────────────
+// NO se importa en el top-level: vfs_fonts pesa ~2 MB y bloquea React en prod.
+let _pdfMakeInstance = null
+
+async function getPdfMake() {
+  if (_pdfMakeInstance) return _pdfMakeInstance
+  const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([
+    import('pdfmake/build/pdfmake'),
+    import('pdfmake/build/vfs_fonts'),
+  ])
+  // Compatibilidad con distintas versiones del paquete
+  pdfMake.vfs = pdfFonts?.pdfMake?.vfs ?? pdfFonts?.vfs ?? pdfFonts
+  _pdfMakeInstance = pdfMake
+  return pdfMake
+}
 
 // ── Paleta de colores del Municipio de Acateno ───────────────────────────────
 const C = {
@@ -1039,7 +1050,8 @@ export async function generarPDF(data, preview = false, plantillaId = 1) {
 
     setProgreso(75, 'Generando PDF...')
 
-    // Crear PDF con pdfmake
+    // Cargar pdfmake de forma lazy y crear el PDF
+    const pdfMake = await getPdfMake()
     const pdfDocGenerator = pdfMake.createPdf(docDef)
 
     setProgreso(90, 'Preparando archivo...')
