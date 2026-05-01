@@ -1105,136 +1105,233 @@ export async function generarPDF(data, preview = false, plantillaId = 1) {
 // ═════════════════════════════════════════════════════════════════════════════
 // EXPORTACIÓN REACT — @react-pdf/renderer
 // ─────────────────────────────────────────────────────────────────────────────
-// Para usar los componentes React importa desde este archivo:
+// NOTA: Esta función usa React.createElement (sin JSX) para ser compatible
+//       con archivos .js en Vite sin necesidad de configuración extra.
 //
-//   import { PDFOrdenDePago, PDFViewer } from './pdf.js'
+// USO en un componente React:
+//
+//   import { cargarComponentesReactPDF } from './pdf.js'
 //   import { PDFViewer } from '@react-pdf/renderer'
 //
-//   <PDFViewer width="100%" height={600}>
-//     <PDFOrdenDePago data={data} />
-//   </PDFViewer>
+//   const { PDFOrdenDePago } = await cargarComponentesReactPDF()
 //
-// NOTA: @react-pdf/renderer solo funciona en entornos React.
-//       Si no usas React, ignora esta sección.
+//   <PDFViewer width="100%" height={600}>
+//     <PDFOrdenDePago data={data} logoUrl="/assets/logo_acateno.png" />
+//   </PDFViewer>
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Importación dinámica para no romper entornos sin React
-let ReactPDFComponents = null
+let _reactPDFCache = null
 
 export async function cargarComponentesReactPDF() {
-  if (ReactPDFComponents) return ReactPDFComponents
+  if (_reactPDFCache) return _reactPDFCache
 
   try {
-    const { Document, Page, Text, View, StyleSheet, Image, Font } =
+    const { Document, Page, Text, View, StyleSheet, Image } =
       await import('@react-pdf/renderer')
 
-    // Estilos base compartidos
-    const estilos = StyleSheet.create({
-      page:        { padding: 40, fontFamily: 'Helvetica' },
-      barraVerde:  { backgroundColor: '#1a3a2a', height: 14, marginBottom: 6 },
-      headerRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-      titulo:      { fontSize: 11, fontFamily: 'Helvetica-Bold', textAlign: 'center' },
-      subtitulo:   { fontSize: 9, textAlign: 'center' },
-      label:       { fontSize: 9, fontFamily: 'Helvetica-Bold' },
-      valor:       { fontSize: 9 },
-      tabla:       { marginTop: 6, marginBottom: 6 },
-      th:          { backgroundColor: '#2d6a42', color: 'white', fontSize: 8, padding: 3, fontFamily: 'Helvetica-Bold', textAlign: 'center' },
-      td:          { fontSize: 8, padding: 3 },
-      fila:        { flexDirection: 'row' },
-      firma:       { alignItems: 'center', marginTop: 8 },
-      lineaFirma:  { borderBottomWidth: 0.8, borderBottomColor: '#333', width: 160, marginBottom: 2 },
+    const h = (type, props, ...children) =>
+      ({ type, props: { ...props, children: children.flat().filter(Boolean) } })
+
+    // Estilos base
+    const S = StyleSheet.create({
+      page:       { padding: 40, fontFamily: 'Helvetica' },
+      barraV:     { backgroundColor: '#1a3a2a', height: 14, marginBottom: 6 },
+      row:        { flexDirection: 'row' },
+      center:     { textAlign: 'center' },
+      bold:       { fontFamily: 'Helvetica-Bold' },
+      f9:         { fontSize: 9 },
+      f8:         { fontSize: 8 },
+      f7:         { fontSize: 7 },
+      thCell:     { backgroundColor: '#2d6a42', color: 'white', fontSize: 8,
+                    fontFamily: 'Helvetica-Bold', textAlign: 'center', padding: 3 },
+      tdCell:     { fontSize: 8, padding: 3 },
+      lineaF:     { borderBottomWidth: 0.8, borderBottomColor: '#333', width: 160, marginBottom: 3 },
+      firma:      { alignItems: 'center', marginTop: 4 },
     })
 
-    // ── Componente: Orden de Pago (Plantilla 1) ──
+    // Helper: fila label + valor
+    const labelVal = (lab, val, wLab = 95) => h(View, { style: S.row },
+      h(Text, { style: { ...S.tdCell, ...S.bold, width: wLab } }, lab),
+      h(Text, { style: S.tdCell }, String(val ?? '')),
+    )
+
+    // Helper: barra verde con texto
+    const barraTexto = (texto) => h(
+      View, { style: { backgroundColor: '#1a3a2a', padding: 4, marginBottom: 4 } },
+      h(Text, { style: { color: 'white', ...S.bold, ...S.f9, ...S.center } }, texto),
+    )
+
+    // ── PDFOrdenDePago (Plantilla 1) ──────────────────────────────────────────
     function PDFOrdenDePago({ data, logoUrl }) {
       const monto    = Number(data?.monto || 0)
       const montoStr = monto.toLocaleString('es-MX', { minimumFractionDigits: 2 })
       const enLetra  = numeroALetras(monto)
-      const fechas   = parsearFecha(data?.fecha)
+      const iva      = Number(data?.iva || 0)
+      const isr      = Number(data?.isr || 0)
+      const total    = monto + iva - isr
+      const ivaStr   = iva.toLocaleString('es-MX', { minimumFractionDigits: 2 })
+      const isrStr   = isr.toLocaleString('es-MX', { minimumFractionDigits: 2 })
+      const totalStr = total.toLocaleString('es-MX', { minimumFractionDigits: 2 })
 
-      return (
-        <Document>
-          <Page size="LETTER" style={estilos.page}>
-            {/* Barra superior */}
-            <View style={estilos.barraVerde} />
+      const importesRows = [
+        ['IMPORTE',            `$ ${montoStr}`],
+        ['I.V.A',              `$ ${ivaStr}`],
+        ['RETENCION DE I.S.R', `$ ${isrStr}`],
+        ['TOTAL A PAGAR',      `$ ${totalStr}`],
+      ]
 
-            {/* Header */}
-            <View style={estilos.headerRow}>
-              {logoUrl && <Image src={logoUrl} style={{ width: 60, marginRight: 10 }} />}
-              <View style={{ flex: 1 }}>
-                <Text style={estilos.titulo}>MUNICIPIO DE ACATENO; PUEBLA.</Text>
-                <Text style={estilos.subtitulo}>2024-2027</Text>
-              </View>
-              <View>
-                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>ORDEN DE PAGO</Text>
-                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>TESORERÍA MUNICIPAL</Text>
-              </View>
-            </View>
+      const firmantes = [
+        ['C.GERARDO GÓMEZ ALONSO', 'TESORERO MUNICIPAL'],
+        ['ING. DIEGO TORRE OSORIO','PRESIDENTE MUNICIPAL'],
+      ]
 
-            {/* Concepto */}
-            <View style={{ flexDirection: 'row', marginBottom: 6 }}>
-              <Text style={estilos.label}>El concepto: </Text>
-              <Text style={estilos.valor}>{data?.concepto}</Text>
-            </View>
+      return Document({ children: [
+        Page({ size: 'LETTER', style: S.page, children: [
+          // Barra superior
+          View({ style: S.barraV }),
 
-            {/* Tabla de importes */}
-            <View style={{ ...estilos.tabla, alignSelf: 'flex-end', width: 240 }}>
-              {[
-                ['IMPORTE',          `$ ${montoStr}`],
-                ['I.V.A',            '$ 0.00'],
-                ['RETENCION DE I.S.R','$ 0.00'],
-                ['TOTAL A PAGAR',    `$ ${montoStr}`],
-              ].map(([lab, val]) => (
-                <View key={lab} style={{ ...estilos.fila, borderBottomWidth: 0.5, borderColor: '#ccc' }}>
-                  <Text style={{ ...estilos.td, flex: 1 }}>{lab}</Text>
-                  <Text style={{ ...estilos.td, textAlign: 'right' }}>{val}</Text>
-                </View>
-              ))}
-            </View>
+          // Header
+          View({ style: { ...S.row, alignItems: 'center', marginBottom: 8 }, children: [
+            logoUrl && Image({ src: logoUrl, style: { width: 60, marginRight: 10 } }),
+            View({ style: { flex: 1 }, children: [
+              Text({ style: { ...S.bold, fontSize: 11, ...S.center } }, 'MUNICIPIO DE ACATENO; PUEBLA.'),
+              Text({ style: { ...S.f9, ...S.center } }, '2024-2027'),
+            ]}),
+            View({ style: { alignItems: 'flex-end' }, children: [
+              Text({ style: { ...S.bold, ...S.f9 } }, 'ORDEN DE PAGO'),
+              Text({ style: { ...S.bold, ...S.f9 } }, 'TESORERÍA MUNICIPAL'),
+            ]}),
+          ]}),
 
-            {/* En letra */}
-            <Text style={{ fontSize: 8, marginTop: 8, marginBottom: 12 }}>{enLetra}</Text>
+          // Municipio de Acateno A
+          View({ style: { ...S.row, marginBottom: 8 }, children: [
+            Text({ style: { ...S.bold, ...S.f9, width: 175 } }, 'MUNICIPIO DE ACATENO A:'),
+            Text({ style: S.f9 }, String(data?.proveedor ?? '')),
+          ]}),
 
-            {/* Beneficiario */}
-            <View style={{ backgroundColor: '#1a3a2a', padding: 3, marginBottom: 4 }}>
-              <Text style={{ color: 'white', fontSize: 9, fontFamily: 'Helvetica-Bold', textAlign: 'center' }}>
-                BENEFICIARIO
-              </Text>
-            </View>
-            {[
-              ['A nombre de:', data?.proveedor],
-              ['R.F.C:',       data?.rfc],
-              ['Forma de pago:', data?.forma_pago || 'CHEQUE'],
-            ].map(([lab, val]) => (
-              <View key={lab} style={estilos.fila}>
-                <Text style={{ ...estilos.td, fontFamily: 'Helvetica-Bold', width: 90 }}>{lab}</Text>
-                <Text style={estilos.td}>{val}</Text>
-              </View>
-            ))}
+          // Concepto
+          Text({ style: { ...S.bold, ...S.f9, marginBottom: 3 } }, 'El concepto:'),
+          View({ style: { borderWidth: 0.5, borderColor: '#bbb', padding: 4, marginBottom: 6 }, children: [
+            Text({ style: S.f9 }, String(data?.concepto ?? '')),
+          ]}),
 
-            {/* Firmas */}
-            <View style={{ ...estilos.fila, justifyContent: 'space-between', marginTop: 30 }}>
-              {[
-                ['C.GERARDO GÓMEZ ALONSO', 'TESORERO MUNICIPAL'],
-                ['ING. DIEGO TORRE OSORIO', 'PRESIDENTE MUNICIPAL'],
-              ].map(([n, c]) => (
-                <View key={n} style={estilos.firma}>
-                  <View style={estilos.lineaFirma} />
-                  <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold' }}>{n}</Text>
-                  <Text style={{ fontSize: 8 }}>{c}</Text>
-                </View>
-              ))}
-            </View>
+          // Sello DEL MUNICIPIO
+          barraTexto('DEL MUNICIPIO DE ACATENO'),
 
-            {/* Barra inferior */}
-            <View style={{ ...estilos.barraVerde, marginTop: 10, marginBottom: 0 }} />
-          </Page>
-        </Document>
-      )
+          // Factura / Contrato
+          View({ style: { ...S.row, marginBottom: 6 }, children: [
+            Text({ style: { ...S.f8, flex: 1 } },
+              'No. De Factura   ' + String(data?.no_factura ?? '')),
+            Text({ style: { ...S.f8, flex: 1 } },
+              'No. De Contrato   ' + String(data?.no_contrato ?? '')),
+          ]}),
+
+          // Fondo
+          Text({ style: { ...S.f8, marginBottom: 4 } },
+            'Fondo o programa con el cual se autoriza el pago:   ' + String(data?.fondo ?? '')),
+
+          // Cuenta / Importe
+          View({ style: { ...S.row, marginBottom: 4 }, children: [
+            Text({ style: { ...S.f8, flex: 1 } }, 'Cuenta Bancaria:   ' + String(data?.cuenta_bancaria ?? '')),
+            Text({ style: { ...S.f8, flex: 1 } }, 'Importe a pagar:   $ ' + montoStr),
+          ]}),
+
+          // Monto pagado
+          Text({ style: { ...S.f9, ...S.center, marginBottom: 8 } }, 'Monto Pagado:   $ ' + montoStr),
+
+          // Tabla importes (alineada a la derecha)
+          View({ style: { alignSelf: 'flex-end', width: 240, marginBottom: 10 }, children:
+            importesRows.map(([lab, val]) =>
+              View({ key: lab, style: { ...S.row, borderBottomWidth: 0.5, borderColor: '#ccc' }, children: [
+                Text({ style: { ...S.tdCell, flex: 1 } }, lab),
+                Text({ style: { ...S.tdCell, textAlign: 'right' } }, val),
+              ]})
+            ),
+          }),
+
+          // En letra
+          Text({ style: { ...S.bold, ...S.f9, ...S.center, marginBottom: 3 } }, 'EN LETRA:'),
+          View({ style: { borderWidth: 0.5, borderColor: '#bbb', padding: 4, marginBottom: 10 }, children: [
+            Text({ style: S.f8 }, enLetra),
+          ]}),
+
+          // Beneficiario
+          barraTexto('BENEFICIARIO'),
+          labelVal('A nombre de:',    data?.proveedor),
+          labelVal('Responsable legal:', data?.responsable),
+          labelVal('R.F.C:',           data?.rfc),
+          labelVal('Forma de pago:',   data?.forma_pago || 'CHEQUE'),
+
+          // Firmas
+          View({ style: { ...S.row, justifyContent: 'space-between', marginTop: 28 }, children:
+            firmantes.map(([n, c]) =>
+              View({ key: n, style: S.firma, children: [
+                View({ style: S.lineaF }),
+                Text({ style: { ...S.bold, ...S.f8 } }, n),
+                Text({ style: S.f8 }, c),
+              ]})
+            ),
+          }),
+
+          // Barra inferior
+          View({ style: { ...S.barraV, marginTop: 10 } }),
+        ]}),
+      ]})
     }
 
-    ReactPDFComponents = { PDFOrdenDePago }
-    return ReactPDFComponents
+    // ── PDFSolicitudSuficiencia (Plantilla 2) ─────────────────────────────────
+    function PDFSolicitudSuficiencia({ data }) {
+      const fechas   = parsearFecha(data?.fecha)
+      const solicitante = data?.solicitante       || 'C. José Hugo García Moreno'
+      const cargoSol    = data?.cargo_solicitante || 'Auxiliar de Tesorería'
+      const concepto    = data?.concepto          || 'materiales de oficina'
+
+      return Document({ children: [
+        Page({ size: 'LETTER', style: S.page, children: [
+          View({ style: { ...S.row, justifyContent: 'flex-end', marginBottom: 14 }, children: [
+            View({ children: [
+              Text({ style: S.f9 }, 'No. de Oficio: ' + (data?.folio || 'S/N')),
+              Text({ style: S.f9 }, 'ASUNTO: Solicitud de Suficiencia Presupuestal'),
+            ]}),
+          ]}),
+
+          Text({ style: { ...S.bold, fontSize: 10 } }, 'C. Gerardo Gómez Alonso'),
+          Text({ style: S.f9 }, 'Tesorero Municipal'),
+          Text({ style: S.f9 }, 'H. Ayuntamiento de Acateno, Puebla'),
+          Text({ style: { ...S.f9, ...S.bold, marginBottom: 14 } }, 'P r e s e n t e'),
+
+          Text({
+            style: { ...S.f9, textAlign: 'justify', lineHeight: 1.5, marginBottom: 16 },
+          },
+            `Quien suscribe ${solicitante}, ${cargoSol} del Municipio de Acateno, Puebla, ` +
+            `por medio de la presente reciba un cordial saludo y al mismo tiempo me dirijo a usted ` +
+            `de la manera más atenta y con Fundamento en el Artículo 45 fracciones I y X, 58 y 60 ` +
+            `de la ley de Adquisiciones, Arrendamientos y Servicios del Sector Publico Estatal y ` +
+            `Municipal para el Estado de Puebla, Solicito de la manera más atenta Asigne Suficiencia ` +
+            `Presupuestal para efectos de llevar a cabo la adquisición de ${concepto}, que son de suma ` +
+            `importancia para realizar las actividades diarias de la Administración Municipal de ` +
+            `Acateno 2024-2027, atentamente solicito notificarme por escrito la respuesta correspondiente a mi petición.`
+          ),
+
+          Text({ style: { ...S.f9, marginBottom: 32 } },
+            'Sin otro particular, quedo de Usted como su seguro colaborador.'),
+
+          Text({ style: { ...S.bold, ...S.f9, ...S.center } }, 'A t e n t a m e n t e'),
+          Text({ style: { ...S.bold, ...S.f9, ...S.center, marginBottom: 48 } },
+            `Acateno, Puebla; a ${fechas.larga}`),
+
+          View({ style: { ...S.firma, alignSelf: 'center' }, children: [
+            View({ style: S.lineaF }),
+            Text({ style: { ...S.bold, ...S.f9, ...S.center } }, solicitante),
+            Text({ style: { ...S.f9, ...S.center } }, cargoSol),
+            Text({ style: { ...S.f9, ...S.center } }, 'del H Ayuntamiento de Acateno, Puebla.'),
+          ]}),
+        ]}),
+      ]})
+    }
+
+    _reactPDFCache = { PDFOrdenDePago, PDFSolicitudSuficiencia }
+    return _reactPDFCache
 
   } catch (e) {
     console.warn('[PDF] @react-pdf/renderer no disponible:', e.message)
