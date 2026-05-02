@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev":   "tsx watch index.ts",
-    "build": "npx tsc",
-    "start": "node dist/index.js",
+    "build": "echo 'no build needed'",
+    "start": "tsx index.ts",
     "seed":  "tsx seed.ts",
     "setup": "tsx setup.ts"
   },
