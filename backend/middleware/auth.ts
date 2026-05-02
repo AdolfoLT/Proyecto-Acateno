@@ -1,50 +1,38 @@
-import { Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { RequestAutenticado, UsuarioJWT } from '../types.js';
+import { Request, Response, NextFunction } from 'express'
+import jwt from 'jsonwebtoken'
+import { UsuarioJWT } from '../types.js'
 
-export function authMiddleware(
-  req: RequestAutenticado,
-  res: Response,
-  next: NextFunction
-): void {
-  const header = req.headers['authorization'] || '';
-  const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
+export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const header = req.headers['authorization'] ?? ''
+  const token  = header.startsWith('Bearer ') ? header.slice(7) : null
 
   if (!token) {
-    res.status(401).json({ mensaje: 'Token no proporcionado.' });
-    return;
+    res.status(401).json({ mensaje: 'Token no proporcionado.' })
+    return
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as UsuarioJWT;
-    req.user = decoded;
-    next();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as UsuarioJWT
+    req.user = decoded
+    next()
   } catch {
-    res.status(401).json({ mensaje: 'Token inválido o expirado.' });
+    res.status(401).json({ mensaje: 'Token inválido o expirado.' })
   }
 }
 
-export function soloAdmin(
-  req: RequestAutenticado,
-  res: Response,
-  next: NextFunction
-): void {
+export function soloAdmin(req: Request, res: Response, next: NextFunction): void {
   if (req.user?.rol !== 'admin') {
-    res.status(403).json({ mensaje: 'Acceso restringido a administradores.' });
-    return;
+    res.status(403).json({ mensaje: 'Acceso restringido a administradores.' })
+    return
   }
-  next();
+  next()
 }
 
-export function adminOContador(
-  req: RequestAutenticado,
-  res: Response,
-  next: NextFunction
-): void {
-  const rol = req.user?.rol;
+export function adminOContador(req: Request, res: Response, next: NextFunction): void {
+  const rol = req.user?.rol
   if (rol !== 'admin' && rol !== 'contador') {
-    res.status(403).json({ mensaje: 'Acceso restringido.' });
-    return;
+    res.status(403).json({ mensaje: 'Acceso restringido.' })
+    return
   }
-  next();
+  next()
 }
