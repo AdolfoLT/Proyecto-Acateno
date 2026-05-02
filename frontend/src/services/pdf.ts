@@ -173,9 +173,17 @@ interface PlantillaMeta {
 interface PdfMakeInstance {
   fonts: Record<string, unknown>
   createPdf: (docDef: DocDefinition) => {
-    getBase64: (cb: (b64: string) => void, errCb?: (err: unknown) => void) => void
-    download: (nombre: string) => void
+    // pdfmake 0.3.x: getBase64 devuelve Promise (ya NO es callback)
+    getBase64: () => Promise<string>
+    getBlob:   () => Promise<Blob>
+    download:  (nombre: string) => void
   }
+}
+
+// ── Tipo auxiliar para addFontContainer de pdfmake 0.3.x ─────────────────────
+interface FontContainer {
+  vfs:   Record<string, unknown>
+  fonts: Record<string, unknown>
 }
 
 // ── Tipos para React-PDF (componentes) ───────────────────────────────────────
@@ -192,17 +200,24 @@ let _pdfMakeInstance: PdfMakeInstance | null = null
 
 async function getPdfMake(): Promise<PdfMakeInstance> {
   if (_pdfMakeInstance) return _pdfMakeInstance
-  const { default: pdfMake } = (await import('pdfmake/build/pdfmake') as unknown) as {
-    default: PdfMakeInstance
-  }
-  pdfMake.fonts = {
-    Helvetica: {
-      normal:      'Helvetica',
-      bold:        'Helvetica-Bold',
-      italics:     'Helvetica-Oblique',
-      bolditalics: 'Helvetica-BoldOblique',
-    },
-  }
+
+  // pdfmake 0.3.x: importar build browser y fuentes estándar via addFontContainer
+  const [pdfMakeModule, HelveticaModule] = await Promise.all([
+    import('pdfmake/build/pdfmake'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error — sin tipos para pdfmake/build/standard-fonts/*
+    import('pdfmake/build/standard-fonts/Helvetica'),
+  ])
+  const pdfMake = (pdfMakeModule as unknown as { default: PdfMakeInstance }).default
+    ?? (pdfMakeModule as unknown as PdfMakeInstance)
+  const HelveticaFont = HelveticaModule as unknown as FontContainer | { default: FontContainer }
+
+  // addFontContainer registra el VFS y el descriptor de fuente en un solo paso
+  const fontContainer = ('default' in (HelveticaFont as object)
+    ? (HelveticaFont as { default: FontContainer }).default
+    : HelveticaFont as FontContainer)
+  ;(pdfMake as unknown as { addFontContainer: (fc: FontContainer) => void }).addFontContainer(fontContainer)
+
   _pdfMakeInstance = pdfMake
   return pdfMake
 }
@@ -1060,42 +1075,34 @@ export async function generarPDF(
 
     setProgreso(90, 'Preparando archivo...')
 
-    await new Promise<void>((resolve, reject) => {
-      pdfDocGenerator.getBase64((base64: string) => {
-        try {
-          const byteChars = atob(base64)
-          const byteNums  = new Uint8Array(byteChars.length)
-          for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i)
+    // pdfmake 0.3.x: getBase64() es async (devuelve Promise, NO callback)
+    const base64   = await pdfDocGenerator.getBase64()
+    const byteChars = atob(base64)
+    const byteNums  = new Uint8Array(byteChars.length)
+    for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i)
 
-          const blob       = new Blob([byteNums], { type: 'application/pdf' })
-          const objectUrl  = URL.createObjectURL(blob)
-          const nombreBase = `${data.folio ?? 'doc'}_${meta.nombre}`
+    const blob       = new Blob([byteNums], { type: 'application/pdf' })
+    const objectUrl  = URL.createObjectURL(blob)
+    const nombreBase = `${data.folio ?? 'doc'}_${meta.nombre}`
 
-          setProgreso(100, '¡Documento listo!')
-          setTimeout(() => {
-            cerrarProgreso()
-            const a = document.createElement('a')
-            a.href  = objectUrl
+    setProgreso(100, '¡Documento listo!')
+    await new Promise<void>(r => setTimeout(r, 400))
+    cerrarProgreso()
 
-            if (preview) {
-              const ventana = window.open(objectUrl, '_blank')
-              if (!ventana || ventana.closed || typeof ventana.closed === 'undefined') {
-                a.download = `${nombreBase}_preview.pdf`
-                document.body.appendChild(a); a.click(); document.body.removeChild(a)
-              }
-              setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000)
-            } else {
-              a.download = `${nombreBase}.pdf`
-              document.body.appendChild(a); a.click(); document.body.removeChild(a)
-              setTimeout(() => URL.revokeObjectURL(objectUrl), 15_000)
-            }
-            resolve()
-          }, 400)
-        } catch (err) {
-          reject(err)
-        }
-      }, (err: unknown) => reject(err))
-    })
+    const a = document.createElement('a')
+    a.href  = objectUrl
+    if (preview) {
+      const ventana = window.open(objectUrl, '_blank')
+      if (!ventana || ventana.closed || typeof ventana.closed === 'undefined') {
+        a.download = `${nombreBase}_preview.pdf`
+        document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      }
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000)
+    } else {
+      a.download = `${nombreBase}.pdf`
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 15_000)
+    }
 
   } catch (err) {
     cerrarProgreso()
