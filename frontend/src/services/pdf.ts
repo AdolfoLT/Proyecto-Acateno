@@ -192,7 +192,7 @@ let _pdfMakeInstance: PdfMakeInstance | null = null
 
 async function getPdfMake(): Promise<PdfMakeInstance> {
   if (_pdfMakeInstance) return _pdfMakeInstance
-  const { default: pdfMake } = await import('pdfmake/build/pdfmake') as {
+  const { default: pdfMake } = (await import('pdfmake/build/pdfmake') as unknown) as {
     default: PdfMakeInstance
   }
   pdfMake.fonts = {
@@ -1102,8 +1102,9 @@ export async function generarPDF(
     console.error('[PDF] Error:', err)
 
     const mensaje = err instanceof Error ? err.message : String(err)
-    if ((window as Window & { Swal?: { fire: (o: object) => void } }).Swal) {
-      ;(window as Window & { Swal: { fire: (o: object) => void } }).Swal.fire({
+    const winSwal = (window as unknown as { Swal?: { fire: (o: object) => void } })
+    if (winSwal.Swal) {
+      winSwal.Swal.fire({
         title:              'Error al generar PDF',
         html:               `<pre style="font-size:.75rem;text-align:left;white-space:pre-wrap;color:#7f1d1d">${mensaje}</pre>`,
         icon:               'error',
@@ -1139,12 +1140,12 @@ export async function cargarComponentesReactPDF(): Promise<ReactPDFComponents | 
 
   try {
     const { Document, Page, Text, View, StyleSheet, Image } =
-      await import('@react-pdf/renderer') as {
-        Document: (p: Record<string, unknown>) => unknown
-        Page:     (p: Record<string, unknown>) => unknown
-        Text:     (p: Record<string, unknown>, ...ch: unknown[]) => unknown
-        View:     (p: Record<string, unknown>) => unknown
-        Image:    (p: Record<string, unknown>) => unknown
+      (await import('@react-pdf/renderer') as unknown) as {
+        Document:   (p: Record<string, unknown>) => unknown
+        Page:       (p: Record<string, unknown>) => unknown
+        Text:       (p: Record<string, unknown>, ...ch: unknown[]) => unknown
+        View:       (p: Record<string, unknown>) => unknown
+        Image:      (p: Record<string, unknown>) => unknown
         StyleSheet: { create: <T extends object>(s: T) => T }
       }
 
