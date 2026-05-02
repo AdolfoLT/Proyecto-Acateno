@@ -2,6 +2,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logoAcateno from '../assets/hero.png';
 import Swal from 'sweetalert2';
+import type { ReactElement } from 'react';
 
 const IcoNueva      = () => <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>;
 const IcoLista      = () => <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>;
@@ -13,7 +14,7 @@ const IcoCalculator = () => <svg width="14" height="14" viewBox="0 0 24 24" fill
 interface NavItem {
   to:    string;
   label: string;
-  icon:  JSX.Element;
+  icon:  ReactElement;
 }
 
 export default function Layout() {

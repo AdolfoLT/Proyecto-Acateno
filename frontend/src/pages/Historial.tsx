@@ -1,9 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../context/AuthContext';
 import { useAuth } from '../context/AuthContext';
-import { generarPDF } from '../services/pdf';
+import { generarPDF, DatoPDF } from '../services/pdf';
 import Swal from 'sweetalert2';
 import { Requisicion, RespuestaPaginada, FormaPago } from '../types';
+
+/** Convierte una Requisicion del backend al formato que espera generarPDF */
+function requisicionADatoPDF(r: Requisicion): DatoPDF {
+  return {
+    folio:          r.folio               ?? undefined,
+    fecha:          r.fecha?.slice(0, 10) ?? undefined,
+    concepto:       r.concepto            ?? undefined,
+    proveedor:      r.proveedor           ?? undefined,
+    rfc:            r.rfc                 ?? undefined,
+    monto:          r.monto               ?? undefined,
+    forma_pago:     r.forma_pago          ?? undefined,
+    no_factura:     r.no_factura          ?? undefined,
+    no_contrato:    r.no_contrato         ?? undefined,
+    cuenta_bancaria: r.cuenta_bancaria    ?? undefined,
+    area:           r.area_nombre ?? r.area_catalogo ?? undefined,
+  };
+}
 
 const IcoEye     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
 const IcoDl      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
@@ -141,7 +158,7 @@ export default function Historial() {
 
   async function handlePDF(req: Requisicion, prev: boolean, plantillaId: number) {
     setPdfCargando({ id: req.id, plantillaId });
-    try { await generarPDF(req, prev, plantillaId); }
+    try { await generarPDF(requisicionADatoPDF(req), prev, plantillaId as 1|2|3|4|5|6); }
     finally { setPdfCargando(null); }
   }
 

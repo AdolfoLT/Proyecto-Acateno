@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
+import type { ReactElement } from 'react';
 import { api } from '../context/AuthContext';
 import { useAuth } from '../context/AuthContext';
 import Swal from 'sweetalert2';
@@ -26,7 +27,7 @@ type TabId = 'ocultas' | 'usuarios' | 'auditoria' | 'purgar';
 interface TabDef {
   id:      TabId;
   label:   string;
-  icon:    JSX.Element;
+  icon:    ReactElement;
   visible: boolean;
 }
 
