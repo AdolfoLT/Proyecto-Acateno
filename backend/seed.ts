@@ -1,26 +1,34 @@
 /**
- * seed.js — Usuarios iniciales
- * Ejecutar: node seed.js
+ * seed.ts — Usuarios iniciales
+ * Ejecutar: npx tsx seed.ts
  *
  * Usuarios:
- *   admin     / Admin2024!       → rol admin (todos los permisos)
- *   contador  / Contador2024!    → rol contador (ocultar + ver todo, sin purgar ni gestionar usuarios)
- *   tesorero  / Tesorero2024!    → rol usuario  (solo crear y ver)
+ *   admin     / Admin2024!       → rol admin
+ *   contador  / Contador2024!    → rol contador
+ *   tesorero  / Tesorero2024!    → rol usuario
  *
  * ⚠️  CAMBIA LAS CONTRASEÑAS ANTES DE PRODUCCIÓN
  */
 import bcrypt from 'bcrypt';
-import pool from './config/db.js';
+import pool from './src/config/db.js';
 import dotenv from 'dotenv';
+import { Rol } from './src/types.js';
 dotenv.config();
 
-async function seed() {
+interface UsuarioSeed {
+  nombre:   string;
+  username: string;
+  password: string;
+  rol:      Rol;
+}
+
+async function seed(): Promise<void> {
   console.log('🌱  Sembrando usuarios...');
 
-  const usuarios = [
+  const usuarios: UsuarioSeed[] = [
     { nombre: 'Administrador', username: 'admin',    password: 'Admin2024!',    rol: 'admin'    },
     { nombre: 'Contador',      username: 'contador', password: 'Contador2024!', rol: 'contador' },
-    { nombre: 'Tesorero',   username: 'tesorero', password: 'Tesorero2024!', rol: 'usuario'  },
+    { nombre: 'Tesorero',      username: 'tesorero', password: 'Tesorero2024!', rol: 'usuario'  },
   ];
 
   for (const u of usuarios) {

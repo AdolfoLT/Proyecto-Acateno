@@ -11,35 +11,33 @@ import adminRoutes         from './routes/admin.js';
 dotenv.config();
 
 const app  = express();
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT) || 4000;
 
-// ── Trust proxy (necesario para express-rate-limit) ──────────
 app.set('trust proxy', 1);
 
-// ── Seguridad y middleware ───────────────────────────────────
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
     const allowed = [
       process.env.FRONTEND_URL,
       'http://localhost:5173',
-    ].filter(Boolean)
+    ].filter((u): u is string => Boolean(u));
+
     if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
-      callback(null, true)
+      callback(null, true);
     } else {
-      callback(new Error('CORS bloqueado: ' + origin))
+      callback(new Error('CORS bloqueado: ' + origin));
     }
   },
   credentials: true,
 }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
-// ── Rutas ────────────────────────────────────────────────────
+
 app.use('/api/auth',          authRoutes);
 app.use('/api/requisiciones', requisicionesRoutes);
 app.use('/api/admin',         adminRoutes);
 
-// ── Health check ─────────────────────────────────────────────
 app.get('/api/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -49,10 +47,8 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
-// ── 404 ───────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ mensaje: 'Ruta no encontrada.' }));
 
-// ── Arranque ─────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🏛️  Acateno API corriendo en http://localhost:${PORT}`);
   console.log(`   Ambiente: ${process.env.NODE_ENV || 'development'}\n`);

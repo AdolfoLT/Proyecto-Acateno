@@ -9,9 +9,9 @@ const pool = mysql.createPool({
   password:           process.env.DB_PASSWORD || '1234',
   database:           process.env.DB_NAME     || 'acateno_tesoreria',
   waitForConnections: true,
-  connectionLimit:    20,          // múltiples usuarios simultáneos sin problema
+  connectionLimit:    20,
   queueLimit:         0,
-  timezone:           '-06:00',    // Zona horaria México Centro
+  timezone:           '-06:00',
   charset:            'utf8mb4',
 });
 
