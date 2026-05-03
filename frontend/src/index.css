@@ -877,7 +877,7 @@ tbody tr:last-child td { border-bottom: none; }
   text-align: center;
   padding: 60px 24px;
 }
-.empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: .4; }
+.empty-icon { display: flex; justify-content: center; margin-bottom: 14px; opacity: .35; color: var(--verde-oscuro); }
 .empty-state h3 { font-size: 1rem; color: var(--texto-medio); margin-bottom: 6px; }
 .empty-state p  { font-size: .82rem; color: var(--texto-claro); }
 
