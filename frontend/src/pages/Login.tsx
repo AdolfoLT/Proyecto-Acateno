@@ -49,6 +49,14 @@ export default function Login() {
 
       <div className="login-right">
         <div className="login-form-wrap fade-in">
+          {/* Brand visible solo en móvil (login-left está oculto) */}
+          <div className="login-mobile-brand">
+            <img src={logoAcateno} alt="Municipio de Acateno" className="login-mobile-logo" />
+            <div className="login-mobile-brand-text">
+              <span className="login-mobile-acateno">ACATENO</span>
+              <span className="login-mobile-sub">Tesorería Municipal · 2024-2027</span>
+            </div>
+          </div>
           <h2>Iniciar sesión</h2>
           <p>Ingresa tus credenciales para continuar</p>
 
