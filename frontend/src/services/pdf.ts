@@ -480,7 +480,7 @@ function pieFirmas(
 /** Pie de dirección */
 const pieDireccion: ContentText = {
   text: 'Calle Cuauhtémoc S/N. Col. Centro.  |  Acateno, Puebla. México.  |  C.P. 73590  |  Tel. 232 324 7021',
-  fontSize: 7, color: C.gris, alignment: 'right', margin: [0, 4, 0, 0],
+  fontSize: 7, color: C.gris, alignment: 'center', margin: [0, 4, 0, 0],
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -620,19 +620,25 @@ export function defPlantilla2(data: DatoPDF, logo: string | null, fechas: Fechas
       {
         columns: [
           { text: '', width: '*' },
-          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 180, y2: 0, lineWidth: 0.8, lineColor: '#333' }], width: 180 },
+          {
+            stack: [
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
+              { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
+              { text: cargoSol, fontSize: 9, alignment: 'center' },
+              { text: 'del H Ayuntamiento de Acateno, Puebla.', fontSize: 9, alignment: 'center' },
+            ],
+            alignment: 'center',
+            width: 'auto',
+          },
           { text: '', width: '*' },
         ],
       },
-      { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
-      { text: cargoSol, fontSize: 9, alignment: 'center' },
-      { text: 'del H Ayuntamiento de Acateno, Puebla.', fontSize: 9, alignment: 'center' },
       {
         text: 'Calle Cuauhtémoc S/N. Col. Centro.  |  Acateno, Puebla. México.  |  C.P. 73590  |  Tel. 232 324 7021',
-        fontSize: 7, color: C.gris, alignment: 'right', margin: [0, 10, 0, 0],
+        fontSize: 7, color: C.gris, alignment: 'right', margin: [0, 8, 0, 0],
       },
     ],
-    margin: [55, 14, 55, 0],
+    margin: [55, 0, 55, 0],
   } as unknown as ContentNode
 
   return {
@@ -709,18 +715,24 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
       {
         columns: [
           { text: '', width: '*' },
-          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 180, y2: 0, lineWidth: 0.8, lineColor: '#333' }], width: 180 },
+          {
+            stack: [
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
+              { text: 'C. Gerardo Gómez Alonso', bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
+              { text: 'Tesorero Municipal de Acateno, Puebla', fontSize: 9, alignment: 'center' },
+            ],
+            alignment: 'center',
+            width: 'auto',
+          },
           { text: '', width: '*' },
         ],
       },
-      { text: 'C. Gerardo Gómez Alonso', bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
-      { text: 'Tesorero Municipal de Acateno, Puebla', fontSize: 9, alignment: 'center' },
       {
         text: 'Calle Cuauhtémoc S/N. Col. Centro.  |  Acateno, Puebla. México.  |  C.P. 73590  |  Tel. 232 324 7021',
-        fontSize: 7, color: C.gris, alignment: 'right', margin: [0, 10, 0, 0],
+        fontSize: 7, color: C.gris, alignment: 'right', margin: [0, 8, 0, 0],
       },
     ],
-    margin: [55, 14, 55, 0],
+    margin: [55, 0, 55, 0],
   } as unknown as ContentNode
 
   return {
@@ -827,14 +839,20 @@ export function defPlantilla4(data: DatoPDF, logo: string | null, fechas: Fechas
       {
         columns: [
           { text: '', width: '*' },
-          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 180, y2: 0, lineWidth: 0.8, lineColor: '#333' }], width: 180 },
+          {
+            stack: [
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
+              { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
+              { text: cargoSol, fontSize: 9, alignment: 'center' },
+            ],
+            alignment: 'center',
+            width: 'auto',
+          },
           { text: '', width: '*' },
         ],
       },
-      { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
-      { text: cargoSol, fontSize: 9, alignment: 'center' },
     ],
-    margin: [55, 14, 55, 0],
+    margin: [55, 0, 55, 0],
   } as unknown as ContentNode
 
   return {
