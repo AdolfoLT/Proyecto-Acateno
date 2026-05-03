@@ -105,6 +105,7 @@ interface DocDefinition {
   pageMargins: [number, number, number, number]
   content: ContentNode[]
   defaultStyle: { font: string; fontSize: number; color: string }
+  footer?: ContentNode | ((currentPage: number, pageCount: number) => ContentNode)
 }
 
 // ── Tipos de datos de plantillas ──────────────────────────────────────────────
@@ -496,10 +497,20 @@ export function defPlantilla1(data: DatoPDF, logo: string | null, fechas: Fechas
   const total    = monto + iva - isr
   const totalStr = total.toLocaleString('es-MX', { minimumFractionDigits: 2 })
 
+  // Altura reservada para el footer: firmas + barra verde + margen
+  const FOOTER_H = 70
+
   return {
     pageSize: 'LETTER',
-    pageMargins: [40, 16, 40, 16],
+    pageMargins: [40, 16, 40, FOOTER_H],
     defaultStyle,
+    footer: {
+      stack: [
+        pieFirmas('C.GERARDO GÓMEZ ALONSO', 'TESORERO MUNICIPAL', 'ING. DIEGO TORRE OSORIO', 'PRESIDENTE MUNICIPAL', 4),
+        { ...barraVerde(14), margin: [0, 4, 0, 0] },
+      ],
+      margin: [40, 0, 40, 0],
+    } as unknown as ContentNode,
     content: [
       { ...barraVerde(14), margin: [0, 0, 0, 6] },
       headerMunicipio(logo, 'ORDEN DE PAGO', 'TESORERÍA MUNICIPAL'),
@@ -591,8 +602,6 @@ export function defPlantilla1(data: DatoPDF, logo: string | null, fechas: Fechas
         },
         margin: [0, 0, 0, 20],
       },
-      pieFirmas('C.GERARDO GÓMEZ ALONSO', 'TESORERO MUNICIPAL', 'ING. DIEGO TORRE OSORIO', 'PRESIDENTE MUNICIPAL', 16),
-      barraVerde(14),
     ],
   }
 }
