@@ -51,10 +51,10 @@ export default function AdminPanel() {
   const [eliminando, setEliminando] = useState<number | null>(null);
 
   const TABS_BASE: TabDef[] = [
-    { id: 'ocultas',   label: 'Req. Ocultadas', icon: <IcoFolder />,    visible: esPrivilegiado },
+    { id: 'ocultas',   label: 'Ocultadas',      icon: <IcoFolder />,    visible: esPrivilegiado },
     { id: 'usuarios',  label: 'Usuarios',        icon: <IcoUsers />,    visible: esAdmin },
     { id: 'auditoria', label: 'Auditoría',       icon: <IcoClipboard />, visible: esAdmin },
-    { id: 'purgar',    label: 'Purga de Datos',  icon: <IcoBomb />,     visible: esAdmin },
+    { id: 'purgar',    label: 'Purga',           icon: <IcoBomb />,     visible: esAdmin },
   ];
   const TABS = TABS_BASE.filter(t => t.visible);
 
@@ -428,12 +428,20 @@ export default function AdminPanel() {
               <div className="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>#</th><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th>Creado</th><th style={{ textAlign: 'center' }}>Acciones</th></tr>
+                    <tr>
+                      <th className="col-hide-mobile">#</th>
+                      <th>Nombre</th>
+                      <th>Usuario</th>
+                      <th>Rol</th>
+                      <th>Estado</th>
+                      <th className="col-hide-mobile">Creado</th>
+                      <th style={{ textAlign: 'center' }}>Acciones</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {usuarios.map(u => (
                       <tr key={u.id}>
-                        <td style={{ color: 'var(--texto-claro)', fontSize: '.8rem' }}>{u.id}</td>
+                        <td className="col-hide-mobile" style={{ color: 'var(--texto-claro)', fontSize: '.8rem' }}>{u.id}</td>
                         <td><b>{u.nombre}</b></td>
                         <td>
                           <code style={{ fontSize: '.82rem', background: 'var(--gris-20)', padding: '2px 6px', borderRadius: 4 }}>
@@ -453,7 +461,7 @@ export default function AdminPanel() {
                             {u.activo ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
-                        <td style={{ fontSize: '.78rem', color: 'var(--texto-claro)' }}>{u.creado_en?.slice(0, 10)}</td>
+                        <td className="col-hide-mobile" style={{ fontSize: '.78rem', color: 'var(--texto-claro)' }}>{u.creado_en?.slice(0, 10)}</td>
                         <td>
                           <div className="acciones-cell" style={{ justifyContent: 'center' }}>
                             <button className="btn btn-secondary" style={{ fontSize: '.72rem', padding: '4px 10px' }} onClick={() => resetPassword(u)}>
@@ -488,12 +496,20 @@ export default function AdminPanel() {
               <div className="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Registro</th><th>IP</th></tr>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Usuario</th>
+                      <th>Acción</th>
+                      <th className="col-hide-mobile">Registro</th>
+                      <th className="col-hide-mobile">IP</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {auditoria.map(a => (
                       <tr key={a.id}>
-                        <td style={{ fontSize: '.78rem', whiteSpace: 'nowrap' }}>{new Date(a.fecha).toLocaleString('es-MX')}</td>
+                        <td style={{ fontSize: '.75rem', whiteSpace: 'nowrap' }}>
+                          {new Date(a.fecha).toLocaleString('es-MX', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })}
+                        </td>
                         <td>
                           <code style={{ fontSize: '.8rem', background: 'var(--gris-20)', padding: '1px 5px', borderRadius: 3 }}>
                             {a.username}
@@ -504,10 +520,10 @@ export default function AdminPanel() {
                             {a.accion}
                           </span>
                         </td>
-                        <td style={{ fontSize: '.78rem', color: 'var(--texto-claro)' }}>
+                        <td className="col-hide-mobile" style={{ fontSize: '.78rem', color: 'var(--texto-claro)' }}>
                           {a.tabla}{a.registro_id ? ` #${a.registro_id}` : ''}
                         </td>
-                        <td style={{ fontSize: '.75rem', color: 'var(--texto-claro)' }}>{a.ip}</td>
+                        <td className="col-hide-mobile" style={{ fontSize: '.75rem', color: 'var(--texto-claro)' }}>{a.ip}</td>
                       </tr>
                     ))}
                   </tbody>

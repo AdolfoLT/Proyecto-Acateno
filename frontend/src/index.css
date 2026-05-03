@@ -753,15 +753,24 @@ tbody tr:last-child td { border-bottom: none; }
 
   /* ── Login: mostrar brand encima del form ──────────────────────── */
   .login-left  { display: none; }
-  .login-right { width: 100%; padding: 0; min-height: 100vh; display: flex; flex-direction: column; }
-  .login-form-wrap { flex: 1; padding: 0 24px 40px; display: flex; flex-direction: column; justify-content: center; }
+  .login-right {
+    width: 100%; padding: 0;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    justify-content: flex-start;  /* brand pegado arriba */
+  }
+  .login-form-wrap {
+    padding: 32px 24px 40px;
+    display: flex; flex-direction: column;
+  }
   .login-mobile-brand {
     display: flex;
     align-items: center;
     gap: 14px;
     background: var(--verde-oscuro);
-    padding: 24px 24px 22px;
+    padding: 28px 24px;
     margin: 0 -24px 32px;
+    flex-shrink: 0;
   }
   .login-mobile-logo {
     width: 54px;
@@ -811,6 +820,13 @@ tbody tr:last-child td { border-bottom: none; }
 
   /* ── Doc rows ──────────────────────────────────────────────────── */
   .doc-row { flex-wrap: wrap; gap: 8px; }
+
+  /* ── Columnas opcionales: ocultar en móvil ─────────────────────── */
+  .col-hide-mobile { display: none !important; }
+
+  /* Auditoría: fecha más corta */
+  .audit-fecha { white-space: nowrap; font-size: .75rem; }
+
 }
 
 /* ══════════════════════════════════════════════════════════════
