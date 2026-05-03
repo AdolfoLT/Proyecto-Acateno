@@ -618,19 +618,11 @@ export function defPlantilla2(data: DatoPDF, logo: string | null, fechas: Fechas
   const firmaFooter: ContentNode = {
     stack: [
       {
-        columns: [
-          { text: '', width: '*' },
-          {
-            stack: [
-              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
-              { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
-              { text: cargoSol, fontSize: 9, alignment: 'center' },
-              { text: 'del H Ayuntamiento de Acateno, Puebla.', fontSize: 9, alignment: 'center' },
-            ],
-            alignment: 'center',
-            width: 'auto',
-          },
-          { text: '', width: '*' },
+        stack: [
+          { canvas: [{ type: 'line', x1: -100, y1: 0, x2: 100, y2: 0, lineWidth: 0.8, lineColor: '#333' }], alignment: 'center' },
+          { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
+          { text: cargoSol, fontSize: 9, alignment: 'center' },
+          { text: 'del H Ayuntamiento de Acateno, Puebla.', fontSize: 9, alignment: 'center' },
         ],
       },
       {
@@ -713,18 +705,10 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
   const firmaFooter: ContentNode = {
     stack: [
       {
-        columns: [
-          { text: '', width: '*' },
-          {
-            stack: [
-              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
-              { text: 'C. Gerardo Gómez Alonso', bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
-              { text: 'Tesorero Municipal de Acateno, Puebla', fontSize: 9, alignment: 'center' },
-            ],
-            alignment: 'center',
-            width: 'auto',
-          },
-          { text: '', width: '*' },
+        stack: [
+          { canvas: [{ type: 'line', x1: -100, y1: 0, x2: 100, y2: 0, lineWidth: 0.8, lineColor: '#333' }], alignment: 'center' },
+          { text: 'C. Gerardo Gómez Alonso', bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
+          { text: 'Tesorero Municipal de Acateno, Puebla', fontSize: 9, alignment: 'center' },
         ],
       },
       {
@@ -836,21 +820,9 @@ export function defPlantilla4(data: DatoPDF, logo: string | null, fechas: Fechas
 
   const firmaFooter: ContentNode = {
     stack: [
-      {
-        columns: [
-          { text: '', width: '*' },
-          {
-            stack: [
-              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
-              { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
-              { text: cargoSol, fontSize: 9, alignment: 'center' },
-            ],
-            alignment: 'center',
-            width: 'auto',
-          },
-          { text: '', width: '*' },
-        ],
-      },
+      { canvas: [{ type: 'line', x1: -100, y1: 0, x2: 100, y2: 0, lineWidth: 0.8, lineColor: '#333' }], alignment: 'center' },
+      { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
+      { text: cargoSol, fontSize: 9, alignment: 'center' },
     ],
     margin: [55, 0, 55, 0],
   } as unknown as ContentNode
