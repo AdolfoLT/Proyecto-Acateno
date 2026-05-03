@@ -7,6 +7,7 @@ import pool from './config/db.js';
 import authRoutes          from './routes/auth.js';
 import requisicionesRoutes from './routes/requisiciones.js';
 import adminRoutes         from './routes/admin.js';
+import escanearRoutes      from './routes/escanear.js';
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth',          authRoutes);
 app.use('/api/requisiciones', requisicionesRoutes);
 app.use('/api/admin',         adminRoutes);
+app.use('/api/escanear',      escanearRoutes);
 
 app.get('/api/health', async (_req, res) => {
   try {
