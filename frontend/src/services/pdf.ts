@@ -609,17 +609,62 @@ export function defPlantilla1(data: DatoPDF, logo: string | null, fechas: Fechas
 // ═════════════════════════════════════════════════════════════════════════════
 // PLANTILLA 2 — SOLICITUD DE SUFICIENCIA PRESUPUESTAL
 // ═════════════════════════════════════════════════════════════════════════════
-export function defPlantilla2(data: DatoPDF, _logo: string | null, fechas: FechasParseadas): DocDefinition {
+export function defPlantilla2(data: DatoPDF, logo: string | null, fechas: FechasParseadas): DocDefinition {
   const { larga }   = fechas
   const solicitante = data.solicitante       ?? 'C. José Hugo García Moreno'
   const cargoSol    = data.cargo_solicitante ?? 'Auxiliar de Tesorería'
   const concepto    = data.concepto          ?? 'materiales de oficina'
 
+  const firmaFooter: ContentNode = {
+    stack: [
+      {
+        columns: [
+          { text: '', width: '*' },
+          {
+            stack: [
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
+              { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
+              { text: cargoSol, fontSize: 9, alignment: 'center' },
+              { text: 'del H Ayuntamiento de Acateno, Puebla.', fontSize: 9, alignment: 'center' },
+            ],
+            alignment: 'center',
+            width: 'auto',
+          },
+          { text: '', width: '*' },
+        ],
+      },
+      {
+        text: 'Calle Cuauhtémoc S/N. Col. Centro.  |  Acateno, Puebla. México.  |  C.P. 73590  |  Tel. 232 324 7021',
+        fontSize: 7, color: C.gris, alignment: 'right', margin: [0, 8, 0, 0],
+      },
+    ],
+    margin: [55, 0, 55, 0],
+  } as unknown as ContentNode
+
   return {
     pageSize: 'LETTER',
-    pageMargins: [55, 50, 55, 40],
+    pageMargins: [55, 30, 55, 90],
     defaultStyle,
+    footer: firmaFooter,
     content: [
+      // ── Encabezado con logo + barra verde ──────────────────────────────────
+      {
+        columns: [
+          ...(logo ? [{ image: logo, width: 70, alignment: 'center' as Alignment }] : [{ text: '', width: 70 }]),
+          {
+            stack: [
+              { text: 'MUNICIPIO DE ACATENO; PUEBLA.', bold: true, fontSize: 11, alignment: 'center' },
+              { text: '2024-2027', fontSize: 9, alignment: 'center' },
+            ],
+            width: '*',
+            margin: [0, 8, 0, 0],
+          },
+          { text: '', width: 70 },
+        ],
+        margin: [0, 0, 0, 4],
+      },
+      { ...barraVerde(6), margin: [0, 0, 0, 20] },
+      // ── Folio arriba a la derecha ──────────────────────────────────────────
       {
         columns: [
           { text: '', width: '*' },
@@ -631,30 +676,22 @@ export function defPlantilla2(data: DatoPDF, _logo: string | null, fechas: Fecha
             width: 'auto',
           },
         ],
-        margin: [0, 0, 0, 16],
+        margin: [0, 0, 0, 20],
       },
+      // ── Destinatario ───────────────────────────────────────────────────────
       { text: 'C. Gerardo Gómez Alonso', bold: true, fontSize: 10, italics: true },
       { text: 'Tesorero Municipal', fontSize: 9, italics: true },
       { text: 'H. Ayuntamiento de Acateno, Puebla', fontSize: 9, italics: true },
       { text: 'Administración 2024-2027', fontSize: 9, italics: true },
-      { text: 'P r e s e n t e', fontSize: 9, italics: true, bold: true, margin: [0, 0, 0, 14] },
+      { text: 'P r e s e n t e', fontSize: 9, italics: true, bold: true, margin: [0, 0, 0, 18] },
+      // ── Cuerpo ─────────────────────────────────────────────────────────────
       {
         text: `Quien suscribe ${solicitante}, ${cargoSol} del Municipio de Acateno, Puebla, por medio de la presente reciba un cordial saludo y al mismo tiempo me dirijo a usted de la manera más atenta y con Fundamento en el Artículo 45 fracciones I y X, 58 y 60 de la ley de Adquisiciones, Arrendamientos y Servicios del Sector Publico Estatal y Municipal para el Estado de Puebla, Solicito de la manera más atenta Asigne Suficiencia Presupuestal para efectos de llevar a cabo la adquisición de ${concepto}, que son de suma importancia para realizar las actividades diarias de la Administración Municipal de Acateno 2024-2027, atentamente solicito notificarme por escrito la respuesta correspondiente a mi petición.`,
-        fontSize: 9, alignment: 'justify', lineHeight: 1.5, margin: [0, 0, 0, 16],
+        fontSize: 9, alignment: 'justify', lineHeight: 1.6, margin: [0, 0, 0, 18],
       },
-      { text: 'Sin otro particular, quedo de Usted como su seguro colaborador.', fontSize: 9, margin: [0, 0, 0, 24] },
-      { text: 'A t e n t a m e n t e', bold: true, fontSize: 9, alignment: 'center' },
-      { text: `Acateno, Puebla; a ${larga}`, bold: true, fontSize: 9, alignment: 'center', margin: [0, 4, 0, 48] },
-      {
-        stack: [
-          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
-          { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
-          { text: cargoSol, fontSize: 9, alignment: 'center' },
-          { text: 'del H Ayuntamiento de Acateno, Puebla.', fontSize: 9, alignment: 'center' },
-        ],
-        alignment: 'center',
-      },
-      pieDireccion,
+      { text: 'Sin otro particular, quedo de Usted como su seguro colaborador.', fontSize: 9, margin: [0, 0, 0, 28] },
+      { text: 'A t e n t a m e n t e', bold: true, fontSize: 10, alignment: 'center' },
+      { text: `Acateno, Puebla; a ${larga}`, bold: true, fontSize: 9, alignment: 'center', margin: [0, 4, 0, 0] },
     ],
   }
 }
@@ -673,12 +710,55 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
   const destinatario = data.destinatario      ?? 'C. José Hugo García Moreno'
   const cargoDestino = data.cargo_destinatario ?? 'Auxiliar de Tesorería del H. Ayuntamiento de Acateno, Puebla'
 
+  const firmaFooter: ContentNode = {
+    stack: [
+      {
+        columns: [
+          { text: '', width: '*' },
+          {
+            stack: [
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
+              { text: 'C. Gerardo Gómez Alonso', bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
+              { text: 'Tesorero Municipal de Acateno, Puebla', fontSize: 9, alignment: 'center' },
+            ],
+            alignment: 'center',
+            width: 'auto',
+          },
+          { text: '', width: '*' },
+        ],
+      },
+      {
+        text: 'Calle Cuauhtémoc S/N. Col. Centro.  |  Acateno, Puebla. México.  |  C.P. 73590  |  Tel. 232 324 7021',
+        fontSize: 7, color: C.gris, alignment: 'right', margin: [0, 8, 0, 0],
+      },
+    ],
+    margin: [55, 0, 55, 0],
+  } as unknown as ContentNode
+
   return {
     pageSize: 'LETTER',
-    pageMargins: [55, 50, 55, 40],
+    pageMargins: [55, 30, 55, 90],
     defaultStyle,
+    footer: firmaFooter,
     content: [
-      ...(logo ? [{ image: logo, width: 80, alignment: 'left' as Alignment, margin: [0, 0, 0, 10] as [number,number,number,number] }] : []),
+      // ── Encabezado con logo ────────────────────────────────────────────────
+      {
+        columns: [
+          ...(logo ? [{ image: logo, width: 70, alignment: 'center' as Alignment }] : [{ text: '', width: 70 }]),
+          {
+            stack: [
+              { text: 'MUNICIPIO DE ACATENO; PUEBLA.', bold: true, fontSize: 11, alignment: 'center' },
+              { text: '2024-2027', fontSize: 9, alignment: 'center' },
+            ],
+            width: '*',
+            margin: [0, 8, 0, 0],
+          },
+          { text: '', width: 70 },
+        ],
+        margin: [0, 0, 0, 4],
+      },
+      { ...barraVerde(6), margin: [0, 0, 0, 20] },
+      // ── Folio ─────────────────────────────────────────────────────────────
       {
         columns: [
           { text: '', width: '*' },
@@ -690,12 +770,14 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
             width: 'auto',
           },
         ],
-        margin: [0, 0, 0, 14],
+        margin: [0, 0, 0, 20],
       },
+      // ── Destinatario ───────────────────────────────────────────────────────
       { text: destinatario, bold: true, fontSize: 10, italics: true },
       { text: cargoDestino, fontSize: 9, italics: true },
       { text: 'Administración 2024-2027', fontSize: 9, italics: true },
-      { text: 'P r e s e n t e', bold: true, fontSize: 9, italics: true, margin: [0, 0, 0, 14] },
+      { text: 'P r e s e n t e', bold: true, fontSize: 9, italics: true, margin: [0, 0, 0, 18] },
+      // ── Cuerpo ─────────────────────────────────────────────────────────────
       {
         text: [
           'Quien suscribe ',
@@ -714,8 +796,9 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
           { text: String(fechas.obj.getFullYear()), bold: true },
           ' de acuerdo con la siguiente estructura financiera:',
         ],
-        fontSize: 9, alignment: 'justify', lineHeight: 1.5, margin: [0, 0, 0, 16],
+        fontSize: 9, alignment: 'justify', lineHeight: 1.6, margin: [0, 0, 0, 16],
       },
+      // ── Tabla financiera ───────────────────────────────────────────────────
       {
         table: {
           widths: [80, 100, 100, '*'],
@@ -731,20 +814,11 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
             [{ text: '', colSpan: 3 } as TableCell, {} as TableCell, {} as TableCell, td(`$${montoStr}`, { alignment: 'center', bold: true })],
           ],
         },
-        margin: [0, 0, 0, 14],
+        margin: [0, 0, 0, 18],
       },
-      { text: 'Sin otro particular que referir, le expreso la seguridad de mi colaboración.', fontSize: 9, margin: [0, 0, 0, 24] },
-      { text: 'A T E N T A M E N T E', bold: true, fontSize: 9, alignment: 'center' },
-      { text: `Acateno, Puebla; a ${larga}`, bold: true, fontSize: 9, alignment: 'center', margin: [0, 4, 0, 48] },
-      {
-        stack: [
-          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
-          { text: 'C. Gerardo Gómez Alonso', bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
-          { text: 'Tesorero Municipal de Acateno, Puebla', fontSize: 9, alignment: 'center' },
-        ],
-        alignment: 'center',
-      },
-      pieDireccion,
+      { text: 'Sin otro particular que referir, le expreso la seguridad de mi colaboración.', fontSize: 9, margin: [0, 0, 0, 28] },
+      { text: 'A T E N T A M E N T E', bold: true, fontSize: 10, alignment: 'center' },
+      { text: `Acateno, Puebla; a ${larga}`, bold: true, fontSize: 9, alignment: 'center', margin: [0, 4, 0, 0] },
     ],
   }
 }
@@ -760,11 +834,51 @@ export function defPlantilla4(data: DatoPDF, logo: string | null, fechas: Fechas
   const cargoDestino = data.cargo_destinatario ?? 'TESORERO MUNICIPAL DE ACATENO'
   const concepto     = data.concepto           ?? 'la compra de material de papelería, de gran utilidad para la realización de actividades diarias del personal de las diferentes áreas del Ayuntamiento de Acateno, y de esta forma cumplir con los objetivos establecidos por la Administración 2024-2027.'
 
+  const firmaFooter: ContentNode = {
+    stack: [
+      {
+        columns: [
+          { text: '', width: '*' },
+          {
+            stack: [
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
+              { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
+              { text: cargoSol, fontSize: 9, alignment: 'center' },
+            ],
+            alignment: 'center',
+            width: 'auto',
+          },
+          { text: '', width: '*' },
+        ],
+      },
+    ],
+    margin: [55, 0, 55, 0],
+  } as unknown as ContentNode
+
   return {
     pageSize: 'LETTER',
-    pageMargins: [55, 50, 55, 40],
+    pageMargins: [55, 30, 55, 80],
     defaultStyle,
+    footer: firmaFooter,
     content: [
+      // ── Encabezado: destinatario izquierda + logo derecha ──────────────────
+      {
+        columns: [
+          ...(logo ? [{ image: logo, width: 70, alignment: 'center' as Alignment }] : [{ text: '', width: 70 }]),
+          {
+            stack: [
+              { text: 'MUNICIPIO DE ACATENO; PUEBLA.', bold: true, fontSize: 11, alignment: 'center' },
+              { text: '2024-2027', fontSize: 9, alignment: 'center' },
+            ],
+            width: '*',
+            margin: [0, 8, 0, 0],
+          },
+          { text: '', width: 70 },
+        ],
+        margin: [0, 0, 0, 4],
+      },
+      { ...barraVerde(6), margin: [0, 0, 0, 20] },
+      // ── Destinatario + Asunto/Fecha ────────────────────────────────────────
       {
         columns: [
           {
@@ -774,13 +888,6 @@ export function defPlantilla4(data: DatoPDF, logo: string | null, fechas: Fechas
             ],
             width: '*',
           },
-          ...(logo ? [{ image: logo, width: 70, alignment: 'right' as Alignment }] : []),
-        ],
-        margin: [0, 0, 0, 14],
-      },
-      {
-        columns: [
-          { text: '', width: '*' },
           {
             stack: [
               { text: [{ text: 'ASUNTO: ', bold: true, fontSize: 9 }, { text: 'SOLICITUD', fontSize: 9 }] },
@@ -789,22 +896,15 @@ export function defPlantilla4(data: DatoPDF, logo: string | null, fechas: Fechas
             width: 'auto',
           },
         ],
-        margin: [0, 0, 0, 16],
+        margin: [0, 0, 0, 20],
       },
+      // ── Cuerpo ─────────────────────────────────────────────────────────────
       {
         text: `Sirva la presente para recibir un cordial saludo; asimismo, solicito de su apoyo para ${concepto} Anexo a la presente el formato de requisición con los materiales solicitados.`,
-        fontSize: 9, alignment: 'justify', lineHeight: 1.5, margin: [0, 0, 0, 16],
+        fontSize: 9, alignment: 'justify', lineHeight: 1.6, margin: [0, 0, 0, 18],
       },
       { text: 'Sin más por el momento, me reitero a sus apreciables órdenes.', fontSize: 9, margin: [0, 0, 0, 32] },
-      { text: 'ATENTAMENTE', bold: true, fontSize: 9, alignment: 'center', margin: [0, 0, 0, 36] },
-      {
-        stack: [
-          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.8, lineColor: '#333' }] },
-          { text: solicitante, bold: true, fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0] },
-          { text: cargoSol, fontSize: 9, alignment: 'center' },
-        ],
-        alignment: 'center',
-      },
+      { text: 'ATENTAMENTE', bold: true, fontSize: 10, alignment: 'center', margin: [0, 0, 0, 0] },
     ],
   }
 }
@@ -846,10 +946,22 @@ export function defPlantilla5(data: DatoPDF, logo: string | null, fechas: Fechas
     margin: [0, 0, 0, 6],
   }
 
+  const firmasFooter5: ContentNode = {
+    columns: ['ELABORADO POR:', 'PRESIDENTE:', 'TESORERO:', 'RECIBIDO POR:'].map((titulo, i) => ({
+      stack: [
+        { text: titulo, bold: true, fontSize: 7, alignment: 'center' },
+        { canvas: [{ type: 'line', x1: 10, y1: 20, x2: 110, y2: 20, lineWidth: 0.7 }] },
+        { text: [nombre, 'Ing. Diego Torre Osorio', 'C. Gerardo Gómez Alonso', ''][i], fontSize: 7, alignment: 'center', margin: [0, 2, 0, 0] },
+      ],
+    })),
+    margin: [30, 8, 30, 0],
+  } as unknown as ContentNode
+
   return {
     pageSize: 'LETTER',
-    pageMargins: [30, 20, 30, 20],
+    pageMargins: [30, 20, 30, 65],
     defaultStyle,
+    footer: firmasFooter5,
     content: [
       ...(logo
         ? [headerConLogo]
@@ -904,15 +1016,6 @@ export function defPlantilla5(data: DatoPDF, logo: string | null, fechas: Fechas
         },
         margin: [0, 0, 0, 12],
       },
-      {
-        columns: ['ELABORADO POR:', 'PRESIDENTE:', 'TESORERO:', 'RECIBIDO POR:'].map((titulo, i) => ({
-          stack: [
-            { text: titulo, bold: true, fontSize: 7, alignment: 'center' },
-            { canvas: [{ type: 'line', x1: 10, y1: 20, x2: 110, y2: 20, lineWidth: 0.7 }] },
-            { text: [nombre, 'Ing. Diego Torre Osorio', 'C. Gerardo Gómez Alonso', ''][i], fontSize: 7, alignment: 'center', margin: [0, 2, 0, 0] },
-          ],
-        })),
-      },
     ],
   }
 }
@@ -946,10 +1049,28 @@ export function defPlantilla6(data: DatoPDF, logo: string | null, fechas: Fechas
 
   const vacias = Math.max(0, 8 - rawItems.length)
 
+  const firmaFooter6: ContentNode = {
+    table: {
+      widths: ['*', 160],
+      body: [[
+        { text: 'No omito mencionar, que los bienes y/o servicios fueron recibidos a entera satisfacción en tiempo y forma.', fontSize: 8, margin: [4, 6, 4, 6] } as TableCell,
+        {
+          stack: [
+            { canvas: [{ type: 'line', x1: 10, y1: 30, x2: 140, y2: 30, lineWidth: 0.7 }] },
+            { text: 'NOMBRE Y FIRMA', bold: true, fontSize: 7, alignment: 'center', margin: [0, 4, 0, 0] },
+          ],
+          margin: [0, 4, 0, 4],
+        } as TableCell,
+      ]],
+    },
+    margin: [30, 8, 30, 0],
+  } as unknown as ContentNode
+
   return {
     pageSize: 'LETTER',
-    pageMargins: [30, 20, 30, 20],
+    pageMargins: [30, 20, 30, 75],
     defaultStyle,
+    footer: firmaFooter6,
     content: [
       {
         table: {
@@ -1022,21 +1143,6 @@ export function defPlantilla6(data: DatoPDF, logo: string | null, fechas: Fechas
           },
         ],
         margin: [0, 0, 0, 12],
-      },
-      {
-        table: {
-          widths: ['*', 160],
-          body: [[
-            { text: 'No omito mencionar, que los bienes y/o servicios fueron recibidos a entera satisfacción en tiempo y forma.', fontSize: 8, margin: [4, 6, 4, 6] } as TableCell,
-            {
-              stack: [
-                { canvas: [{ type: 'line', x1: 10, y1: 30, x2: 140, y2: 30, lineWidth: 0.7 }] },
-                { text: 'NOMBRE Y FIRMA', bold: true, fontSize: 7, alignment: 'center', margin: [0, 4, 0, 0] },
-              ],
-              margin: [0, 4, 0, 4],
-            } as TableCell,
-          ]],
-        },
       },
     ],
   }
