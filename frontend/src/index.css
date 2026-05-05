@@ -601,6 +601,41 @@ tbody tr:last-child td { border-bottom: none; }
   display: flex; align-items: center; gap: 8px;
 }
 
+/* ── Login mobile brand (solo visible en ≤900px) ───────────── */
+.login-mobile-brand {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--gris-20);
+}
+.login-mobile-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.login-mobile-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.login-mobile-acateno {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--verde-oscuro);
+  letter-spacing: .04em;
+  line-height: 1.2;
+}
+.login-mobile-sub {
+  font-size: .72rem;
+  color: var(--texto-claro);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
 /* ── Badges ──────────────────────────────────────────────────── */
 .rol-badge {
   display: inline-flex; align-items: center; gap: 4px;
@@ -712,6 +747,10 @@ tbody tr:last-child td { border-bottom: none; }
 
   /* Login sin branding lateral */
   .login-left  { display: none; }
+
+  /* Login mobile brand visible */
+  .login-mobile-brand { display: flex; }
+
   .login-right { width: 100%; padding: 40px 24px; min-height: 100vh; }
 
   /* Modal bottom-sheet */
