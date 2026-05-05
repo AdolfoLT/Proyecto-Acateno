@@ -634,8 +634,12 @@ export function defPlantilla2(data: DatoPDF, logo: string | null, fechas: Fechas
         ],
       },
       {
+        canvas: [{ type: 'line', x1: 0, y1: 4, x2: 535, y2: 4, lineWidth: 0.5, lineColor: '#cccccc' }],
+        margin: [0, 10, 0, 0],
+      },
+      {
         text: 'Calle Cuauhtémoc S/N. Col. Centro.  |  Acateno, Puebla. México.  |  C.P. 73590  |  Tel. 232 324 7021',
-        fontSize: 7, color: C.gris, alignment: 'right', margin: [0, 8, 0, 0],
+        fontSize: 7, color: C.gris, alignment: 'center', margin: [0, 4, 0, 0],
       },
     ],
     margin: [55, 0, 55, 0],
@@ -728,8 +732,12 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
         ],
       },
       {
+        canvas: [{ type: 'line', x1: 0, y1: 4, x2: 535, y2: 4, lineWidth: 0.5, lineColor: '#cccccc' }],
+        margin: [0, 10, 0, 0],
+      },
+      {
         text: 'Calle Cuauhtémoc S/N. Col. Centro.  |  Acateno, Puebla. México.  |  C.P. 73590  |  Tel. 232 324 7021',
-        fontSize: 7, color: C.gris, alignment: 'right', margin: [0, 8, 0, 0],
+        fontSize: 7, color: C.gris, alignment: 'center', margin: [0, 4, 0, 0],
       },
     ],
     margin: [55, 0, 55, 0],
@@ -994,11 +1002,11 @@ export function defPlantilla5(data: DatoPDF, logo: string | null, fechas: Fechas
       },
       {
         table: {
-          widths: [24, '*', 50, 50, 50],
+          widths: [22, '*', 48, 52, 55],
           headerRows: 2,
           body: [
             [thVerde('No.'), thVerde('ARTÍCULOS'), thVerde('UNIDAD'), { ...thVerde('UNIDAD'), colSpan: 2, text: 'UNIDAD' }, {} as TableCell],
-            [td(''), td(''), td(''), thVerde('SOLICITADA'), thVerde('AUTORIZADA')],
+            [td(''), td(''), td(''), { text: 'SOLICITADA', bold: true, fontSize: 7, color: 'white', fillColor: C.verdeTabla, alignment: 'center' } as TableCell, { text: 'AUTORIZADA', bold: true, fontSize: 7, color: 'white', fillColor: C.verdeTabla, alignment: 'center' } as TableCell],
             ...filasTabla,
           ],
         },
@@ -1077,7 +1085,7 @@ export function defPlantilla6(data: DatoPDF, logo: string | null, fechas: Fechas
           widths: ['*'],
           body: [[{
             stack: [
-              ...(logo ? [{ image: logo, width: 55, alignment: 'center' as Alignment }] : []),
+              ...(logo ? [{ image: logo, width: 40, alignment: 'center' as Alignment, margin: [0, 0, 0, 2] as [number,number,number,number] }] : []),
               { text: 'MUNICIPIO DE ACATENO, PUEBLA',              bold: true, fontSize: 10, alignment: 'center' },
               { text: 'TESORERÍA MUNICIPAL',                        bold: true, fontSize: 9,  alignment: 'center' },
               { text: 'FORMATO DE RECEPCIÓN DE BIENES Y/O SERVICIOS', bold: true, fontSize: 8, alignment: 'center' },
