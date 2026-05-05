@@ -347,21 +347,27 @@ export default function Home() {
         <div className="stats-grid stagger">
           <div className="stat-card verde">
             <div className="stat-icon"><IcoFileText /></div>
-            <div className="stat-label">Total requisiciones</div>
-            <div className="stat-value">{stats.total}</div>
-            <div className="stat-meta">Este año</div>
+            <div className="stat-info">
+              <div className="stat-label">Total requisiciones</div>
+              <div className="stat-value">{stats.total}</div>
+              <div className="stat-meta">Este año</div>
+            </div>
           </div>
           <div className="stat-card dorado">
             <div className="stat-icon"><IcoDollar /></div>
-            <div className="stat-label">Monto total</div>
-            <div className="stat-value" style={{ fontSize: '1.25rem' }}>{fmt(stats.monto)}</div>
-            <div className="stat-meta">Suma acumulada</div>
+            <div className="stat-info">
+              <div className="stat-label">Monto total</div>
+              <div className="stat-value" style={{ fontSize: '1.25rem' }}>{fmt(stats.monto)}</div>
+              <div className="stat-meta">Suma acumulada</div>
+            </div>
           </div>
           <div className="stat-card azul">
             <div className="stat-icon"><IcoCalendar /></div>
-            <div className="stat-label">Registradas hoy</div>
-            <div className="stat-value">{stats.hoy}</div>
-            <div className="stat-meta">{new Date().toLocaleDateString('es-MX', { weekday: 'long' })}</div>
+            <div className="stat-info">
+              <div className="stat-label">Registradas hoy</div>
+              <div className="stat-value">{stats.hoy}</div>
+              <div className="stat-meta">{new Date().toLocaleDateString('es-MX', { weekday: 'long' })}</div>
+            </div>
           </div>
         </div>
 
@@ -446,7 +452,7 @@ export default function Home() {
                     <input placeholder="Opcional" value={form.cuenta_bancaria} onChange={e => set('cuenta_bancaria', e.target.value)} />
                   </div>
                 </div>
-                <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
+                <div className="form-actions" style={{ marginTop: 24, display: 'flex', gap: 12 }}>
                   <button type="submit" className="btn btn-primary" disabled={saving}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       {saving ? <IcoLoader /> : <IcoSave />}

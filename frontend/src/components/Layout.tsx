@@ -128,10 +128,7 @@ export default function Layout() {
           >
             {open ? <IcoX /> : <IcoMenu />}
           </button>
-          <div className="mobile-topbar-brand">
-            <span className="mobile-topbar-acateno">ACATENO</span>
-            <span className="mobile-topbar-sub">Tesorería · 2024-2027</span>
-          </div>
+          <span className="mobile-topbar-title">ACATENO · Tesorería</span>
           <div className="mobile-avatar">{initiales}</div>
         </header>
 
