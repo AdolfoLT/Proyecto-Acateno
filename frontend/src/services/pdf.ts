@@ -1,28 +1,3 @@
-/**
- * pdf.ts — Acateno Tesorería Municipal
- * ─────────────────────────────────────────────────────────────────────────────
- * Genera PDFs con diseño nativo usando pdfmake (sin plantillas externas).
- * También exporta componentes React con @react-pdf/renderer.
- *
- * INSTALACIÓN:
- *   npm install pdfmake
- *   npm install --save-dev @types/pdfmake
- *   npm install @react-pdf/renderer   ← solo si usas el componente React
- *
- * LOGO:
- *   Coloca el logo en: frontend/public/assets/logo_acateno.png
- *   Si no existe, se omite automáticamente.
- *
- * USO:
- *   import { generarPDF } from './pdf'
- *   await generarPDF(data, false, 1)   // descarga
- *   await generarPDF(data, true,  1)   // abre en nueva pestaña
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
-// ── Tipos pdfmake ─────────────────────────────────────────────────────────────
-// @types/pdfmake no exporta TDocumentDefinitions directamente en algunas
-// versiones; los redefinimos de forma compatible y sin conflictos.
 type Alignment = 'left' | 'right' | 'center' | 'justify'
 
 interface ContentText {
@@ -174,7 +149,6 @@ interface PlantillaMeta {
 interface PdfMakeInstance {
   fonts: Record<string, unknown>
   createPdf: (docDef: DocDefinition) => {
-    // pdfmake 0.3.x: getBase64 devuelve Promise (ya NO es callback)
     getBase64: () => Promise<string>
     getBlob:   () => Promise<Blob>
     download:  (nombre: string) => void
@@ -194,15 +168,13 @@ export interface ReactPDFComponents {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// pdfmake — carga LAZY (solo al generar el primer PDF)
-// Usamos Helvetica (Type-1 estándar) → sin VFS, sin cuelgue, sin bundle gigante
+// pdfmake — carga LAZY
 // ═════════════════════════════════════════════════════════════════════════════
 let _pdfMakeInstance: PdfMakeInstance | null = null
 
 async function getPdfMake(): Promise<PdfMakeInstance> {
   if (_pdfMakeInstance) return _pdfMakeInstance
 
-  // pdfmake 0.3.x: importar build browser y fuentes estándar via addFontContainer
   const [pdfMakeModule, HelveticaModule] = await Promise.all([
     import('pdfmake/build/pdfmake'),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -213,7 +185,6 @@ async function getPdfMake(): Promise<PdfMakeInstance> {
     ?? (pdfMakeModule as unknown as PdfMakeInstance)
   const HelveticaFont = HelveticaModule as unknown as FontContainer | { default: FontContainer }
 
-  // addFontContainer registra el VFS y el descriptor de fuente en un solo paso
   const fontContainer = ('default' in (HelveticaFont as object)
     ? (HelveticaFont as { default: FontContainer }).default
     : HelveticaFont as FontContainer)
@@ -223,7 +194,7 @@ async function getPdfMake(): Promise<PdfMakeInstance> {
   return pdfMake
 }
 
-// ── Paleta de colores del Municipio de Acateno ───────────────────────────────
+// ── Paleta de colores ───────────────────────────────
 const C = {
   verde:      '#1a3a2a',
   verdeTabla: '#2d6a42',
@@ -235,7 +206,7 @@ const C = {
 
 // ── Metadatos de cada plantilla ───────────────────────────────────────────────
 const META: Record<number, PlantillaMeta> = {
-  1: { nombre: 'Orden_de_Pago',           titulo: 'Orden de Pago'                  },
+  1: { nombre: 'Orden_de_Pago',          titulo: 'Orden de Pago'                 },
   2: { nombre: 'Solicitud_Suficiencia',    titulo: 'Solicitud de Suficiencia'       },
   3: { nombre: 'Autorizacion_Suficiencia', titulo: 'Autorización de Suficiencia'    },
   4: { nombre: 'Oficio_Solicitud',         titulo: 'Oficio de Solicitud'            },
@@ -305,7 +276,6 @@ function cerrarProgreso(): void {
 // UTILIDADES
 // ═════════════════════════════════════════════════════════════════════════════
 
-/** Convierte monto numérico a texto en español (pesos mexicanos) */
 export function numeroALetras(num: number): string {
   if (!num || isNaN(num)) return 'CERO PESOS 00/100 M.N.'
 
@@ -351,11 +321,20 @@ export function numeroALetras(num: number): string {
   return `${res} PESOS ${String(centavos).padStart(2, '0')}/100 M.N.`
 }
 
-/** Formatea fecha a partir de 'YYYY-MM-DD' o undefined */
-export function parsearFecha(rawFecha?: string): FechasParseadas {
+/** 
+ * Formatea fecha a partir de 'YYYY-MM-DD' o undefined.
+ * Permite restar días para sincronizar documentos (ej. Solicitud 5 días antes)
+ */
+export function parsearFecha(rawFecha?: string, offsetDias: number = 0): FechasParseadas {
   const str = rawFecha ? String(rawFecha).slice(0, 10) : new Date().toISOString().slice(0, 10)
   const [yr, mo, dy] = str.split('-').map(Number)
+  
   const obj = new Date(yr, mo - 1, dy)
+  
+  if (offsetDias !== 0) {
+    obj.setDate(obj.getDate() - offsetDias)
+  }
+
   return {
     larga: obj.toLocaleDateString('es-MX', { day: '2-digit', month: 'long',     year: 'numeric' }),
     corta: obj.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit',  year: 'numeric' }),
@@ -363,7 +342,6 @@ export function parsearFecha(rawFecha?: string): FechasParseadas {
   }
 }
 
-/** Carga el logo como dataURL, intentando varias rutas */
 export async function cargarLogo(): Promise<string | null> {
   const rutas = [
     '/assets/logo_acateno.png',
@@ -393,25 +371,21 @@ export async function cargarLogo(): Promise<string | null> {
 
 const defaultStyle = { font: 'Helvetica', fontSize: 9, color: C.negro }
 
-/** Barra de color sólido */
 const barraVerde = (alto = 14): ContentCanvas => ({
   canvas: [{ type: 'rect', x: 0, y: 0, w: 535, h: alto, color: C.verde }],
   margin: [0, 0, 0, 0],
 })
 
-/** Celda de encabezado verde */
 const thVerde = (texto: string, colSpan = 1): TableCell => ({
   text: texto, bold: true, fontSize: 8, color: 'white',
   fillColor: C.verdeTabla, alignment: 'center', colSpan,
 })
 
-/** Celda normal */
 const td = (texto: string | number, opts: Partial<TableCell> = {}): TableCell => ({
   text: String(texto ?? ''), fontSize: 8,
   ...opts,
 })
 
-/** Encabezado estándar (logo + nombre + tipo de documento) */
 function headerMunicipio(
   logo: string | null,
   tipoParte1 = '',
@@ -450,7 +424,6 @@ function headerMunicipio(
   return { columns: cols, margin: [0, 6, 0, 8] }
 }
 
-/** Bloque de dos firmas al pie */
 function pieFirmas(
   nombre1: string,
   cargo1: string,
@@ -477,7 +450,6 @@ function pieFirmas(
   }
 }
 
-/** Pie de dirección */
 const pieDireccion: ContentText = {
   text: 'Calle Cuauhtémoc S/N. Col. Centro.  |  Acateno, Puebla. México.  |  C.P. 73590  |  Tel. 232 324 7021',
   fontSize: 7, color: C.gris, alignment: 'center', margin: [0, 4, 0, 0],
@@ -497,7 +469,6 @@ export function defPlantilla1(data: DatoPDF, logo: string | null, fechas: Fechas
   const total    = monto + iva - isr
   const totalStr = total.toLocaleString('es-MX', { minimumFractionDigits: 2 })
 
-  // Altura reservada para el footer: firmas + barra verde + margen
   const FOOTER_H = 70
 
   return {
@@ -651,7 +622,6 @@ export function defPlantilla2(data: DatoPDF, logo: string | null, fechas: Fechas
     defaultStyle,
     footer: firmaFooter,
     content: [
-      // ── Encabezado con logo + barra verde ──────────────────────────────────
       {
         columns: [
           ...(logo ? [{ image: logo, width: 70, alignment: 'center' as Alignment }] : [{ text: '', width: 70 }]),
@@ -668,7 +638,6 @@ export function defPlantilla2(data: DatoPDF, logo: string | null, fechas: Fechas
         margin: [0, 0, 0, 4],
       },
       { ...barraVerde(6), margin: [0, 0, 0, 20] },
-      // ── Folio arriba a la derecha ──────────────────────────────────────────
       {
         columns: [
           { text: '', width: '*' },
@@ -682,13 +651,11 @@ export function defPlantilla2(data: DatoPDF, logo: string | null, fechas: Fechas
         ],
         margin: [0, 0, 0, 20],
       },
-      // ── Destinatario ───────────────────────────────────────────────────────
       { text: 'C. Gerardo Gómez Alonso', bold: true, fontSize: 10, italics: true },
       { text: 'Tesorero Municipal', fontSize: 9, italics: true },
       { text: 'H. Ayuntamiento de Acateno, Puebla', fontSize: 9, italics: true },
       { text: 'Administración 2024-2027', fontSize: 9, italics: true },
       { text: 'P r e s e n t e', fontSize: 9, italics: true, bold: true, margin: [0, 0, 0, 18] },
-      // ── Cuerpo ─────────────────────────────────────────────────────────────
       {
         text: `Quien suscribe ${solicitante}, ${cargoSol} del Municipio de Acateno, Puebla, por medio de la presente reciba un cordial saludo y al mismo tiempo me dirijo a usted de la manera más atenta y con Fundamento en el Artículo 45 fracciones I y X, 58 y 60 de la ley de Adquisiciones, Arrendamientos y Servicios del Sector Publico Estatal y Municipal para el Estado de Puebla, Solicito de la manera más atenta Asigne Suficiencia Presupuestal para efectos de llevar a cabo la adquisición de ${concepto}, que son de suma importancia para realizar las actividades diarias de la Administración Municipal de Acateno 2024-2027, atentamente solicito notificarme por escrito la respuesta correspondiente a mi petición.`,
         fontSize: 9, alignment: 'justify', lineHeight: 1.6, margin: [0, 0, 0, 18],
@@ -749,7 +716,6 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
     defaultStyle,
     footer: firmaFooter,
     content: [
-      // ── Encabezado con logo ────────────────────────────────────────────────
       {
         columns: [
           ...(logo ? [{ image: logo, width: 70, alignment: 'center' as Alignment }] : [{ text: '', width: 70 }]),
@@ -766,7 +732,6 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
         margin: [0, 0, 0, 4],
       },
       { ...barraVerde(6), margin: [0, 0, 0, 20] },
-      // ── Folio ─────────────────────────────────────────────────────────────
       {
         columns: [
           { text: '', width: '*' },
@@ -780,12 +745,10 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
         ],
         margin: [0, 0, 0, 20],
       },
-      // ── Destinatario ───────────────────────────────────────────────────────
       { text: destinatario, bold: true, fontSize: 10, italics: true },
       { text: cargoDestino, fontSize: 9, italics: true },
       { text: 'Administración 2024-2027', fontSize: 9, italics: true },
       { text: 'P r e s e n t e', bold: true, fontSize: 9, italics: true, margin: [0, 0, 0, 18] },
-      // ── Cuerpo ─────────────────────────────────────────────────────────────
       {
         text: [
           'Quien suscribe ',
@@ -806,7 +769,6 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
         ],
         fontSize: 9, alignment: 'justify', lineHeight: 1.6, margin: [0, 0, 0, 16],
       },
-      // ── Tabla financiera ───────────────────────────────────────────────────
       {
         table: {
           widths: [80, 100, 100, '*'],
@@ -869,7 +831,6 @@ export function defPlantilla4(data: DatoPDF, logo: string | null, fechas: Fechas
     defaultStyle,
     footer: firmaFooter,
     content: [
-      // ── Encabezado: destinatario izquierda + logo derecha ──────────────────
       {
         columns: [
           ...(logo ? [{ image: logo, width: 70, alignment: 'center' as Alignment }] : [{ text: '', width: 70 }]),
@@ -886,7 +847,6 @@ export function defPlantilla4(data: DatoPDF, logo: string | null, fechas: Fechas
         margin: [0, 0, 0, 4],
       },
       { ...barraVerde(6), margin: [0, 0, 0, 20] },
-      // ── Destinatario + Asunto/Fecha ────────────────────────────────────────
       {
         columns: [
           {
@@ -906,7 +866,6 @@ export function defPlantilla4(data: DatoPDF, logo: string | null, fechas: Fechas
         ],
         margin: [0, 0, 0, 20],
       },
-      // ── Cuerpo ─────────────────────────────────────────────────────────────
       {
         text: `Sirva la presente para recibir un cordial saludo; asimismo, solicito de su apoyo para ${concepto} Anexo a la presente el formato de requisición con los materiales solicitados.`,
         fontSize: 9, alignment: 'justify', lineHeight: 1.6, margin: [0, 0, 0, 18],
@@ -1170,6 +1129,16 @@ const builders: Record<number, PlantillaBuilder> = {
   6: defPlantilla6,
 }
 
+// Offset de días a restar dependiendo de la plantilla solicitada
+const OFFSET_DIAS: Record<number, number> = {
+  1: 0, // Orden de pago: mismo día
+  2: 5, // Solicitud de suficiencia: 5 días antes
+  3: 4, // Autorización de suficiencia: 4 días antes
+  4: 3, // Oficio solicitud: 3 días antes
+  5: 3, // Requisición: 3 días antes
+  6: 0, // Recepción de bienes: A la par
+}
+
 export async function generarPDF(
   data: DatoPDF,
   preview = false,
@@ -1187,7 +1156,10 @@ export async function generarPDF(
     const logo = await cargarLogo()
 
     setProgreso(30, 'Preparando datos...')
-    const fechas = parsearFecha(data.fecha)
+    
+    // Obtenemos los días a restar y parseamos la fecha ajustada
+    const diasRestar = OFFSET_DIAS[plantillaId] ?? 0
+    const fechas = parsearFecha(data.fecha, diasRestar)
 
     setProgreso(50, 'Construyendo documento...')
     const docDef = builders[plantillaId](data, logo, fechas)
@@ -1198,7 +1170,6 @@ export async function generarPDF(
 
     setProgreso(90, 'Preparando archivo...')
 
-    // pdfmake 0.3.x: getBase64() es async (devuelve Promise, NO callback)
     const base64   = await pdfDocGenerator.getBase64()
     const byteChars = atob(base64)
     const byteNums  = new Uint8Array(byteChars.length)
@@ -1206,7 +1177,22 @@ export async function generarPDF(
 
     const blob       = new Blob([byteNums], { type: 'application/pdf' })
     const objectUrl  = URL.createObjectURL(blob)
-    const nombreBase = `${data.folio ?? 'doc'}_${meta.nombre}`
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Mejora de Nombres: Extraemos folio, factura y proveedor para ser descriptivos
+    // ─────────────────────────────────────────────────────────────────────────
+    const sanitize = (str: string) => str.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+    const partesNombre = [meta.nombre]
+    
+    if (data.folio)      partesNombre.push(`Folio_${sanitize(String(data.folio))}`)
+    if (data.no_factura) partesNombre.push(`Fact_${sanitize(String(data.no_factura))}`)
+    if (data.proveedor)  partesNombre.push(sanitize(data.proveedor.substring(0, 25)))
+    
+    // Añadimos la fecha con la que se generó (en formato corto YYYY-MM-DD)
+    const fechaDoc = fechas.obj.toISOString().slice(0, 10)
+    partesNombre.push(fechaDoc)
+
+    const nombreBase = partesNombre.join('_')
 
     setProgreso(100, '¡Documento listo!')
     await new Promise<void>(r => setTimeout(r, 400))
@@ -1258,10 +1244,7 @@ export async function descargarPDFRapido(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// EXPORTACIÓN REACT — @react-pdf/renderer (carga lazy, sin JSX, sin romper TS)
-// ─────────────────────────────────────────────────────────────────────────────
-// Usa createElement-style (Document({...})) compatible con .ts puro.
-// Solo disponible si @react-pdf/renderer está instalado.
+// EXPORTACIÓN REACT — @react-pdf/renderer
 // ═════════════════════════════════════════════════════════════════════════════
 let _reactPDFCache: ReactPDFComponents | null = null
 
@@ -1389,7 +1372,8 @@ export async function cargarComponentesReactPDF(): Promise<ReactPDFComponents | 
     }
 
     function PDFSolicitudSuficiencia({ data }: { data: DatoPDF }) {
-      const fechas      = parsearFecha(data?.fecha)
+      // 5 Días menos, para que la vista de React empate con el PDF de descarga
+      const fechas      = parsearFecha(data?.fecha, 5) 
       const solicitante = data?.solicitante       ?? 'C. José Hugo García Moreno'
       const cargoSol    = data?.cargo_solicitante ?? 'Auxiliar de Tesorería'
       const concepto    = data?.concepto          ?? 'materiales de oficina'
