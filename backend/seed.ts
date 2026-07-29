@@ -1,18 +1,7 @@
-/**
- * seed.ts — Usuarios iniciales
- * Ejecutar: npx tsx seed.ts
- *
- * Usuarios:
- *   admin     / Admin2024!       → rol admin
- *   contador  / Contador2024!    → rol contador
- *   tesorero  / Tesorero2024!    → rol usuario
- *
- * ⚠️  CAMBIA LAS CONTRASEÑAS ANTES DE PRODUCCIÓN
- */
 import bcrypt from 'bcrypt';
-import pool from './src/config/db.js';
+import pool from './config/db.ts';
 import dotenv from 'dotenv';
-import { Rol } from './src/types.js';
+import { Rol } from './types.ts';
 dotenv.config();
 
 interface UsuarioSeed {

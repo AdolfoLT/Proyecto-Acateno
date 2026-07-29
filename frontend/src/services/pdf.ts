@@ -681,6 +681,9 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
   const destinatario = data.destinatario      ?? 'C. José Hugo García Moreno'
   const cargoDestino = data.cargo_destinatario ?? 'Auxiliar de Tesorería del H. Ayuntamiento de Acateno, Puebla'
 
+  // Para referenciar la fecha de la solicitud (que se hizo 5 días antes de la fecha base)
+  const fechaSolicitud = parsearFecha(data.fecha, 5).larga
+
   const firmaFooter: ContentNode = {
     stack: [
       {
@@ -754,7 +757,7 @@ export function defPlantilla3(data: DatoPDF, logo: string | null, fechas: Fechas
           'Quien suscribe ',
           { text: 'C. Gerardo Gómez Alonso', bold: true },
           ', Tesorero municipal de Acateno, Puebla, por medio del presente escrito y con fundamento en el Artículo 58 de la Ley de Adquisiciones, Arrendamientos y Servicios del Sector Público Estatal y Municipal, en respuesta a su oficio dirigido a esta dependencia con fecha ',
-          { text: larga, bold: true },
+          { text: fechaSolicitud, bold: true },
           ', hago de su conocimiento que el H. Ayuntamiento de Acateno, Puebla; de acuerdo al presupuesto de egresos y a la partida presupuestal ',
           { text: partida || '_______', bold: true },
           ', si cuentan con el recurso económico dentro de la partida para efectuar el pago correspondiente a: ',
@@ -1188,8 +1191,11 @@ export async function generarPDF(
     if (data.no_factura) partesNombre.push(`Fact_${sanitize(String(data.no_factura))}`)
     if (data.proveedor)  partesNombre.push(sanitize(data.proveedor.substring(0, 25)))
     
-    // Añadimos la fecha con la que se generó (en formato corto YYYY-MM-DD)
-    const fechaDoc = fechas.obj.toISOString().slice(0, 10)
+    // Añadimos la fecha con la que se generó (usamos getFullYear y getMonth para evitar desfase de zona horaria)
+    const docYear = fechas.obj.getFullYear()
+    const docMonth = String(fechas.obj.getMonth() + 1).padStart(2, '0')
+    const docDay = String(fechas.obj.getDate()).padStart(2, '0')
+    const fechaDoc = `${docYear}-${docMonth}-${docDay}`
     partesNombre.push(fechaDoc)
 
     const nombreBase = partesNombre.join('_')

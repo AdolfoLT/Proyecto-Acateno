@@ -143,12 +143,42 @@ export default function Home() {
     setFormScan(f => ({ ...f, [field]: value }));
   }
 
+  // ── VALIDACIÓN ESTRICTA DE DATOS ───────────────────────────
+  function validarRequisicion(formulario: FormularioRequisicion): string | null {
+    if (!formulario.monto || isNaN(Number(formulario.monto)) || Number(formulario.monto) <= 0) {
+      return 'El monto debe ser un número mayor a 0.';
+    }
+    if (!formulario.proveedor || formulario.proveedor.trim().length < 3) {
+      return 'El nombre del beneficiario/proveedor es obligatorio.';
+    }
+    if (!formulario.concepto || formulario.concepto.trim().length < 5) {
+      return 'Debes incluir una descripción válida en el concepto.';
+    }
+    if (formulario.rfc && (formulario.rfc.length < 12 || formulario.rfc.length > 13)) {
+      return 'Si ingresas un RFC, debe tener entre 12 y 13 caracteres.';
+    }
+    if (!formulario.fecha || isNaN(new Date(formulario.fecha).getTime())) {
+      return 'La fecha es inválida o está vacía.';
+    }
+    // Validar que la fecha no sea excesivamente antigua ni futura (rango de 1 año)
+    const anioDoc = new Date(formulario.fecha).getFullYear();
+    const anioActual = new Date().getFullYear();
+    if (Math.abs(anioActual - anioDoc) > 1) {
+      return 'La fecha del documento está fuera de un rango contable válido.';
+    }
+    return null; // Todo OK
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!form.monto || isNaN(Number(form.monto))) {
-      Swal.fire({ title: 'Error', text: 'Ingresa un monto válido.', icon: 'error', confirmButtonColor: '#1a3a2a' });
+    
+    // Nueva validación estricta
+    const errorValidacion = validarRequisicion(form);
+    if (errorValidacion) {
+      Swal.fire({ title: 'Datos incompletos', text: errorValidacion, icon: 'warning', confirmButtonColor: '#1a3a2a' });
       return;
     }
+
     setSaving(true);
     try {
       const { data } = await api.post<{ folio: string }>('/requisiciones', form);
@@ -165,10 +195,19 @@ export default function Home() {
 
   async function handleSubmitScan(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!formScan.monto || isNaN(Number(formScan.monto))) {
-      Swal.fire({ title: 'Error', text: 'Ingresa un monto válido.', icon: 'error', confirmButtonColor: '#1a3a2a' });
+    
+    // Nueva validación estricta para lo que extrajo la IA
+    const errorValidacion = validarRequisicion(formScan);
+    if (errorValidacion) {
+      Swal.fire({ 
+        title: 'Revisa la extracción', 
+        text: `La IA omitió o extrajo mal un dato: ${errorValidacion}`, 
+        icon: 'warning', 
+        confirmButtonColor: '#1a3a2a' 
+      });
       return;
     }
+
     setSavingScan(true);
     try {
       const { data } = await api.post<{ folio: string }>('/requisiciones', formScan);
