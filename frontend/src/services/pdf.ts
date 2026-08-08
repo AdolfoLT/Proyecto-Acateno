@@ -1184,7 +1184,13 @@ export async function generarPDF(
     // ─────────────────────────────────────────────────────────────────────────
     // Mejora de Nombres: Extraemos folio, factura y proveedor para ser descriptivos
     // ─────────────────────────────────────────────────────────────────────────
-    const sanitize = (str: string) => str.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+    // Transliteramos acentos/diéresis/ñ a su equivalente ASCII (García → Garcia) en vez de
+    // reemplazarlos por "_", que rompía nombres de proveedores y archivos ilegibles.
+    const sanitize = (str: string) => str
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '')
     const partesNombre = [meta.nombre]
     
     if (data.folio)      partesNombre.push(`Folio_${sanitize(String(data.folio))}`)

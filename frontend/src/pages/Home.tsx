@@ -18,49 +18,155 @@ const IcoScan     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="
 const IcoCheck    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>;
 const IcoX        = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 
-// ── Hojas a ignorar ───────────────────────────────────────────
-const HOJAS_IGNORAR = new Set([
-  'ORDEN PAGO','Jtas Auxiliar','Hoja1','Hoja2','Hoja3','Hoja4','Hoja5','Hoja6',
-  'fortamun 2019','fortamun2020','fism 2019','fism 2020',
-  'DEUDORES','comisiones','uma','gastos pagados en efectivo',
-]);
+// ── Hojas a ignorar (comparación insensible a mayúsculas/acentos) ─────
+const HOJAS_IGNORAR_RAW = [
+  'ORDEN PAGO','JTAS AUXILIAR','HOJA1','HOJA2','HOJA3','HOJA4','HOJA5','HOJA6',
+  'FORTAMUN 2019','FORTAMUN2020','FISM 2019','FISM 2020',
+  'DEUDORES','COMISIONES','UMA','GASTOS PAGADOS EN EFECTIVO',
+];
 
 const CANCELADO_RE = /cancelado|c\s*a\s*n\s*c\s*e\s*l/i;
-const norm = (s: unknown): string => String(s ?? '').toUpperCase().trim().replace(/\s+/g, ' ');
+// Filas resumen/subtotal que NO deben importarse como requisiciones
+const RESUMEN_RE = /^(TOTAL|SUMA|SUBTOTAL|SUB\s*TOTAL|GRAN\s*TOTAL|SALDO)\b/i;
 
+/** Quita acentos/diacríticos para comparar de forma robusta (BENEFICIARIO === BENEFICIÁRIO) */
+const quitarAcentos = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+/** Normaliza para comparación de encabezados/hojas: mayúsculas, sin acentos, espacios colapsados */
+const norm = (s: unknown): string => quitarAcentos(String(s ?? '').toUpperCase().trim()).replace(/\s+/g, ' ');
+
+const HOJAS_IGNORAR = new Set(HOJAS_IGNORAR_RAW.map(norm));
+
+// Alias de encabezados (ya normalizados con norm()) → campo interno.
+// Incluye variantes comunes con/sin acentos, abreviaturas y errores de captura frecuentes.
 const COL_MAP: Record<string, string> = {
-  'FECHA':                     'fecha',
-  'BENEFICIARIO':              'proveedor',
-  'R.F.C.':                    'rfc',
-  'RFC':                       'rfc',
-  'CFDI':                      'no_factura',
-  'FACTURA: CFDI':             'no_factura',
-  'CONCEPTO':                  'concepto',
-  'IMPORTE DEL CHEQUE':        'monto_cheque',
-  'MONTO DE LA TRANSFERENCIA': 'monto_transf',
-  'MONTO DE LA TRANFERENCIA':  'monto_transf',
-  'EFECTIVO':                  'monto_efect',
-  'TOTAL':                     'monto_total',
-  'FORMA DE PAGO':             'forma_pago',
+  'FECHA':                       'fecha',
+  'FECHA DE PAGO':               'fecha',
+  'FECHA PAGO':                  'fecha',
+  'FECHA DE EXPEDICION':         'fecha',
+  'BENEFICIARIO':                'proveedor',
+  'PROVEEDOR':                   'proveedor',
+  'NOMBRE DEL PROVEEDOR':        'proveedor',
+  'NOMBRE DEL BENEFICIARIO':     'proveedor',
+  'NOMBRE':                      'proveedor',
+  'RAZON SOCIAL':                'proveedor',
+  'R.F.C.':                      'rfc',
+  'R F C':                       'rfc',
+  'RFC':                         'rfc',
+  'CFDI':                        'no_factura',
+  'FACTURA: CFDI':               'no_factura',
+  'FACTURA':                     'no_factura',
+  'NO. FACTURA':                 'no_factura',
+  'NUM. FACTURA':                'no_factura',
+  'NUMERO DE FACTURA':           'no_factura',
+  'FOLIO':                       'no_factura',
+  'FOLIO FISCAL':                'no_factura',
+  'CONCEPTO':                    'concepto',
+  'DESCRIPCION':                 'concepto',
+  'CONCEPTO DEL GASTO':          'concepto',
+  'IMPORTE DEL CHEQUE':          'monto_cheque',
+  'CHEQUE':                      'monto_cheque',
+  'MONTO DEL CHEQUE':            'monto_cheque',
+  'MONTO DE LA TRANSFERENCIA':   'monto_transf',
+  'MONTO DE LA TRANFERENCIA':    'monto_transf',
+  'TRANSFERENCIA':               'monto_transf',
+  'IMPORTE DE LA TRANSFERENCIA': 'monto_transf',
+  'EFECTIVO':                    'monto_efect',
+  'IMPORTE EN EFECTIVO':         'monto_efect',
+  'TOTAL':                       'monto_total',
+  'IMPORTE':                     'monto_total',
+  'IMPORTE TOTAL':               'monto_total',
+  'MONTO':                       'monto_total',
+  'MONTO TOTAL':                 'monto_total',
+  'FORMA DE PAGO':               'forma_pago',
+  'METODO DE PAGO':              'forma_pago',
 };
 
+const HOY_ISO = (): string => new Date().toISOString().split('T')[0];
+
+/** Arma 'YYYY-MM-DD' a partir de año/mes/día evitando desfase de zona horaria */
+const fechaISO = (y: number, m: number, d: number): string =>
+  `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
 function parsearFecha(val: unknown): string {
-  if (!val) return new Date().toISOString().split('T')[0];
-  if (val instanceof Date && !isNaN(val.getTime())) return val.toISOString().split('T')[0];
-  if (typeof val === 'number') {
-    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
-    return d.toISOString().split('T')[0];
+  if (val === null || val === undefined || val === '') return HOY_ISO();
+
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    // Usar componentes locales (no UTC) para no perder un día por la zona horaria
+    return fechaISO(val.getFullYear(), val.getMonth() + 1, val.getDate());
   }
-  const limpio = String(val).trim().replace(/\/+/g, '/');
-  const d = new Date(limpio);
-  if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
-  return new Date().toISOString().split('T')[0];
+
+  // Número de serie de Excel (días desde 1899-12-30)
+  if (typeof val === 'number' && isFinite(val)) {
+    const utcMs = Math.round((val - 25569) * 86400 * 1000);
+    const d = new Date(utcMs);
+    return fechaISO(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+  }
+
+  const texto = String(val).trim();
+  if (!texto) return HOY_ISO();
+
+  // ¿Viene como número de serie en texto? (a veces XLSX lo entrega como string)
+  if (/^\d+(\.\d+)?$/.test(texto) && Number(texto) > 20000 && Number(texto) < 60000) {
+    return parsearFecha(Number(texto));
+  }
+
+  // YYYY-MM-DD o YYYY/MM/DD
+  let m = texto.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+  if (m) return fechaISO(Number(m[1]), Number(m[2]), Number(m[3]));
+
+  // DD/MM/YYYY, DD-MM-YYYY o DD/MM/YY (formato mexicano estándar)
+  m = texto.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if (m) {
+    let anio = Number(m[3]);
+    if (anio < 100) anio += 2000;
+    return fechaISO(anio, Number(m[2]), Number(m[1]));
+  }
+
+  // Texto: "15 de marzo de 2024"
+  const meses: Record<string, number> = {
+    enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
+    julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
+  };
+  m = quitarAcentos(texto.toLowerCase()).match(/(\d{1,2})\s+de\s+([a-z]+)\s+(?:de\s+)?(\d{4})/);
+  if (m && meses[m[2]]) return fechaISO(Number(m[3]), meses[m[2]], Number(m[1]));
+
+  const d = new Date(texto);
+  if (!isNaN(d.getTime())) return fechaISO(d.getFullYear(), d.getMonth() + 1, d.getDate());
+
+  return HOY_ISO();
 }
 
 function parsearMonto(val: unknown): number {
   if (val === null || val === undefined || val === '') return 0;
-  if (typeof val === 'number') return val;
-  return Number(String(val).replace(/[^0-9.]/g, '')) || 0;
+  if (typeof val === 'number' && isFinite(val)) return val;
+
+  let s = String(val).trim();
+  if (!s) return 0;
+
+  // Formato contable con paréntesis para negativos: "(1,234.56)" → -1234.56
+  const esNegativo = /^\(.*\)$/.test(s);
+  s = s.replace(/[()]/g, '');
+
+  // Quita símbolos de moneda y espacios, conserva dígitos, punto, coma y signo
+  s = s.replace(/[^\d.,-]/g, '');
+
+  // Si trae coma Y punto, la coma es separador de miles → se elimina
+  if (s.includes(',') && s.includes('.')) {
+    s = s.replace(/,/g, '');
+  } else if (s.includes(',') && !s.includes('.')) {
+    // Solo coma: puede ser separador de miles ("1,234") o decimal ("1234,56")
+    const partes = s.split(',');
+    if (partes[partes.length - 1].length === 2) {
+      s = s.replace(/,/g, (m, i) => (i === s.lastIndexOf(',') ? '.' : ''));
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  }
+
+  const n = Number(s);
+  if (isNaN(n)) return 0;
+  return esNegativo ? -Math.abs(n) : n;
 }
 
 interface Stats { total: number; monto: number; hoy: number; }
@@ -71,7 +177,7 @@ const VACÍO: FormularioRequisicion = {
   concepto: '', proveedor: '', rfc: '',
   monto: '', forma_pago: 'CHEQUE',
   cuenta_bancaria: '', no_factura: '', no_contrato: '',
-  fecha: new Date().toISOString().split('T')[0],
+  fecha: HOY_ISO(),
 };
 
 // ── Resultado que devuelve Claude al analizar la imagen ───────
@@ -286,83 +392,108 @@ export default function Home() {
     }
   }
 
-  // ── Procesador Excel (sin cambios) ────────────────────────
+  /** Colapsa espacios internos/externos sin alterar mayúsculas, tildes ni el contenido real del nombre */
+  const limpiarTexto = (v: unknown): string => String(v ?? '').replace(/\s+/g, ' ').trim();
+
+  // ── Procesador Excel (robustecido: acentos/mayúsculas, hojas variadas, errores aislados) ──
   async function procesarExcel(file: File | undefined) {
     if (!file) return;
-    const buffer = await file.arrayBuffer();
-    const wb = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true, raw: false, dateNF: 'yyyy-mm-dd' });
+
+    let wb: XLSX.WorkBook;
+    try {
+      const buffer = await file.arrayBuffer();
+      wb = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true, raw: false, dateNF: 'yyyy-mm-dd' });
+    } catch {
+      Swal.fire({ title: 'Archivo inválido', text: 'No se pudo leer el archivo. Verifica que sea un .xlsx, .xls o .xlsm válido.', icon: 'error', confirmButtonColor: '#1a3a2a' });
+      return;
+    }
+
     let totalOk = 0, totalFilas = 0;
     const errores: string[] = [];
+    const hojasProcesadas: string[] = [];
 
     for (const nombreHoja of wb.SheetNames) {
-      if (HOJAS_IGNORAR.has(nombreHoja)) continue;
-      const ws = wb.Sheets[nombreHoja];
-      if (!ws) continue;
-      const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null, raw: false, dateNF: 'yyyy-mm-dd' });
-      if (raw.length < 2) continue;
+      if (HOJAS_IGNORAR.has(norm(nombreHoja))) continue;
 
-      let headerIdx = -1;
-      let colIdx: Record<string, number> = {};
-      for (let i = 0; i < Math.min(raw.length, 5); i++) {
-        const fila = raw[i] as unknown[];
-        if (!fila) continue;
-        const tentativo: Record<string, number> = {};
-        for (let c = 0; c < fila.length; c++) {
-          const key = norm(fila[c]);
-          if (COL_MAP[key]) tentativo[COL_MAP[key]] = c;
+      try {
+        const ws = wb.Sheets[nombreHoja];
+        if (!ws) continue;
+        const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null, raw: false, dateNF: 'yyyy-mm-dd' });
+        if (raw.length < 2) continue;
+
+        // Ventana amplia de búsqueda de encabezado: tolera títulos/filas en blanco antes de la tabla
+        let headerIdx = -1;
+        let colIdx: Record<string, number> = {};
+        for (let i = 0; i < Math.min(raw.length, 10); i++) {
+          const fila = raw[i] as unknown[];
+          if (!fila) continue;
+          const tentativo: Record<string, number> = {};
+          for (let c = 0; c < fila.length; c++) {
+            const key = norm(fila[c]);
+            if (COL_MAP[key] && !(COL_MAP[key] in tentativo)) tentativo[COL_MAP[key]] = c;
+          }
+          const tieneMonto = 'monto_cheque' in tentativo || 'monto_transf' in tentativo
+                          || 'monto_efect'  in tentativo || 'monto_total'  in tentativo;
+          if ('proveedor' in tentativo && tieneMonto) { headerIdx = i; colIdx = tentativo; break; }
+          if (headerIdx === -1 && ('proveedor' in tentativo || tieneMonto)) { headerIdx = i; colIdx = tentativo; }
         }
-        const tieneMonto = 'monto_cheque' in tentativo || 'monto_transf' in tentativo
-                        || 'monto_efect'  in tentativo || 'monto_total'  in tentativo;
-        if ('proveedor' in tentativo || tieneMonto) { headerIdx = i; colIdx = tentativo; break; }
-      }
-      if (headerIdx === -1) continue;
+        if (headerIdx === -1) continue;
 
-      const get = (fila: unknown[], campo: string): unknown => {
-        const idx = colIdx[campo];
-        return idx !== undefined ? fila[idx] : null;
-      };
+        const get = (fila: unknown[], campo: string): unknown => {
+          const idx = colIdx[campo];
+          return idx !== undefined ? fila[idx] : null;
+        };
 
-      for (let i = headerIdx + 1; i < raw.length; i++) {
-        const fila = raw[i] as unknown[];
-        if (!fila || fila.every(v => v === null || v === '')) continue;
-        const beneficiario = String(get(fila, 'proveedor') ?? '').trim();
-        if (!beneficiario || CANCELADO_RE.test(beneficiario)) continue;
+        let filasHoja = 0;
 
-        let monto = parsearMonto(get(fila, 'monto_cheque'));
-        let formaPago: FormaPago = 'CHEQUE';
-        if (!monto) { monto = parsearMonto(get(fila, 'monto_transf')); formaPago = 'TRANSFERENCIA'; }
-        if (!monto) { monto = parsearMonto(get(fila, 'monto_efect'));  formaPago = 'EFECTIVO'; }
-        if (!monto) { monto = parsearMonto(get(fila, 'monto_total')); }
-        if (!monto || monto <= 0) continue;
+        for (let i = headerIdx + 1; i < raw.length; i++) {
+          const fila = raw[i] as unknown[];
+          if (!fila || fila.every(v => v === null || v === '')) continue;
 
-        if (colIdx['forma_pago'] !== undefined) {
-          const fp = norm(get(fila, 'forma_pago')) as FormaPago;
-          if (['CHEQUE', 'TRANSFERENCIA', 'EFECTIVO'].includes(fp)) formaPago = fp;
+          const beneficiario = limpiarTexto(get(fila, 'proveedor'));
+          if (!beneficiario || CANCELADO_RE.test(beneficiario) || RESUMEN_RE.test(beneficiario)) continue;
+
+          let monto = parsearMonto(get(fila, 'monto_cheque'));
+          let formaPago: FormaPago = 'CHEQUE';
+          if (!monto) { monto = parsearMonto(get(fila, 'monto_transf')); formaPago = 'TRANSFERENCIA'; }
+          if (!monto) { monto = parsearMonto(get(fila, 'monto_efect'));  formaPago = 'EFECTIVO'; }
+          if (!monto) { monto = parsearMonto(get(fila, 'monto_total')); }
+          if (!monto || monto <= 0) continue;
+
+          if (colIdx['forma_pago'] !== undefined) {
+            const fp = norm(get(fila, 'forma_pago')) as FormaPago;
+            if (['CHEQUE', 'TRANSFERENCIA', 'EFECTIVO'].includes(fp)) formaPago = fp;
+          }
+
+          totalFilas++; filasHoja++;
+          try {
+            await api.post('/requisiciones', {
+              proveedor:  beneficiario,
+              concepto:   limpiarTexto(get(fila, 'concepto')),
+              rfc:        limpiarTexto(get(fila, 'rfc')).toUpperCase().replace(/[\s\-]/g, ''),
+              no_factura: limpiarTexto(get(fila, 'no_factura')),
+              monto, forma_pago: formaPago,
+              fecha: parsearFecha(get(fila, 'fecha')),
+            });
+            totalOk++;
+          } catch (err) {
+            const msg = (err as { response?: { data?: { mensaje?: string }; }; message?: string }).response?.data?.mensaje ?? (err as Error).message;
+            errores.push(`[${nombreHoja}] Fila ${i + 1} — ${beneficiario}: ${msg}`);
+          }
         }
 
-        totalFilas++;
-        try {
-          await api.post('/requisiciones', {
-            proveedor:  beneficiario,
-            concepto:   String(get(fila, 'concepto')  ?? '').trim(),
-            rfc:        String(get(fila, 'rfc')        ?? '').trim().toUpperCase(),
-            no_factura: String(get(fila, 'no_factura') ?? '').trim(),
-            monto, forma_pago: formaPago,
-            fecha: parsearFecha(get(fila, 'fecha')),
-          });
-          totalOk++;
-        } catch (err) {
-          const msg = (err as { response?: { data?: { mensaje?: string }; }; message?: string }).response?.data?.mensaje ?? (err as Error).message;
-          errores.push(`Fila ${i + 1} — ${beneficiario}: ${msg}`);
-        }
+        if (filasHoja > 0) hojasProcesadas.push(`${nombreHoja} (${filasHoja})`);
+      } catch (err) {
+        errores.push(`[${nombreHoja}] Error al procesar la hoja: ${(err as Error).message}`);
       }
     }
 
     if (totalFilas === 0) {
-      Swal.fire({ title: 'Sin datos reconocidos', html: 'No se encontraron filas con monto válido.', icon: 'warning', confirmButtonColor: '#1a3a2a' });
+      Swal.fire({ title: 'Sin datos reconocidos', html: 'No se encontraron filas con beneficiario y monto válido en ninguna hoja del archivo.', icon: 'warning', confirmButtonColor: '#1a3a2a' });
       return;
     }
     let html = `<b>${totalOk}</b> de <b>${totalFilas}</b> requisición(es) importadas correctamente.`;
+    if (hojasProcesadas.length) html += `<br><small>Hojas: ${hojasProcesadas.join(', ')}</small>`;
     if (errores.length) {
       html += `<br><small style="color:#b91c1c">${errores.slice(0, 5).join('<br>')}</small>`;
       if (errores.length > 5) html += `<br><small>...y ${errores.length - 5} más</small>`;

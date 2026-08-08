@@ -1,9 +1,44 @@
 import { Router, Request, Response } from 'express'
 import { authMiddleware } from '../middleware/auth.js'
 import { createWorker } from 'tesseract.js'
+import sharp from 'sharp'
 
 const router = Router()
 router.use(authMiddleware)
+
+// ── Preprocesamiento de imagen (mejora significativa de precisión OCR) ─
+/**
+ * Convierte a escala de grises, normaliza contraste, aplica nitidez y
+ * escala imágenes pequeñas (fotos de celular con texto diminuto) antes
+ * de pasarlas a Tesseract. Si el preprocesamiento falla por cualquier
+ * motivo (formato raro, imagen corrupta), se usa el buffer original
+ * para no bloquear el escaneo.
+ */
+async function preprocesarImagen(buffer: Buffer): Promise<Buffer> {
+  try {
+    const img = sharp(buffer, { failOn: 'none' })
+    const meta = await img.metadata()
+    const ancho = meta.width ?? 0
+
+    // Si la imagen es pequeña, la escalamos para que el texto sea legible
+    const factorEscala = ancho > 0 && ancho < 1600 ? Math.min(3, 1600 / ancho) : 1
+
+    let pipeline = sharp(buffer, { failOn: 'none' }).rotate() // respeta EXIF orientation
+
+    if (factorEscala > 1) {
+      pipeline = pipeline.resize({ width: Math.round(ancho * factorEscala) })
+    }
+
+    return await pipeline
+      .grayscale()
+      .normalize()   // estira el histograma de contraste (mejora texto tenue/fotocopias)
+      .sharpen()     // realza bordes de los caracteres
+      .toBuffer()
+  } catch (err) {
+    console.error('[ESCANEAR] Preprocesamiento de imagen falló, usando original:', err)
+    return buffer
+  }
+}
 
 // ── Helpers de extracción y limpieza (Optimizados para OCR) ───
 
@@ -22,28 +57,37 @@ function extraerRFC(texto: string): string | undefined {
   return undefined
 }
 
-/** Monto: busca el número más grande asociado a $, MXN, pesos, total, importe */
+/**
+ * Monto: busca el número más grande asociado a $, MXN, pesos, total, importe.
+ * Se evita capturar cualquier entero suelto (fechas, folios, teléfonos) exigiendo
+ * símbolo de moneda o formato decimal de centavos (X.XX), que es como casi
+ * siempre se expresan los importes en facturas/recibos mexicanos.
+ */
 function extraerMonto(texto: string): number | undefined {
-  // Primero intentamos buscar líneas explícitas de "TOTAL" o "IMPORTE"
-  const regexTotal = /(?:TOTAL|IMPORTE|NETO)\s*[:$]?\s*([\d,]+\.\d{2})/gi;
+  // 1) Prioridad máxima: líneas explícitas de "TOTAL", "IMPORTE" o "NETO"
+  const regexTotal = /(?:TOTAL|IMPORTE|NETO)\s*[:$]?\s*\$?\s*([\d]{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2})/gi;
   const matchTotales = [...texto.matchAll(regexTotal)];
-  
   if (matchTotales.length > 0) {
-    const montos = matchTotales.map(m => parseFloat(m[1].replace(/,/g, ''))).filter(n => !isNaN(n));
+    const montos = matchTotales.map(m => parseFloat(m[1].replace(/,/g, ''))).filter(n => !isNaN(n) && n > 0);
     if (montos.length > 0) return Math.max(...montos);
   }
 
-  // Fallback: buscar cualquier formato de moneda
-  const regexMoneda = /\$?\s*([\d,]+(?:\.\d{1,2})?)\s*(?:MXN|M\.N\.|pesos|mn)?/gi;
-  const matches = [...texto.matchAll(regexMoneda)];
-  if (!matches.length) return undefined;
-
-  const montos = matches
+  // 2) Montos precedidos explícitamente por símbolo de moneda "$"
+  const regexConSigno = /\$\s*([\d]{1,3}(?:,\d{3})*(?:\.\d{2})?|\d+(?:\.\d{2})?)/g;
+  const conSigno = [...texto.matchAll(regexConSigno)]
     .map(m => parseFloat(m[1].replace(/,/g, '')))
     .filter(n => !isNaN(n) && n > 0);
-    
-  if (!montos.length) return undefined;
-  return Math.max(...montos); // El total suele ser el número más alto en la factura
+  if (conSigno.length > 0) return Math.max(...conSigno);
+
+  // 3) Fallback: cualquier cantidad con exactamente 2 decimales (formato de centavos),
+  //    con o sin separador de miles y con sufijo de moneda opcional (MXN, M.N., pesos)
+  const regexDecimal = /\b([\d]{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2})\s*(?:MXN|M\.N\.|pesos|mn)?\b/gi;
+  const decimales = [...texto.matchAll(regexDecimal)]
+    .map(m => parseFloat(m[1].replace(/,/g, '')))
+    .filter(n => !isNaN(n) && n > 0);
+
+  if (!decimales.length) return undefined;
+  return Math.max(...decimales); // El total suele ser el número más alto en la factura
 }
 
 /** Fecha: Fuerza la salida a YYYY-MM-DD bajo cualquier formato leído */
@@ -155,7 +199,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
   let worker;
   try {
-    const buffer = Buffer.from(imagen, 'base64')
+    const bufferOriginal = Buffer.from(imagen, 'base64')
+    const buffer = await preprocesarImagen(bufferOriginal)
 
     // OCR con Tesseract.js en español + inglés
     worker = await createWorker(['spa', 'eng'], 1, { logger: () => {} })
